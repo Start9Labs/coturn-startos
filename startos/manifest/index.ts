@@ -2,28 +2,20 @@ import { setupManifest } from '@start9labs/start-sdk'
 import { long, short } from './i18n'
 
 export const manifest = setupManifest({
-  id: 'hello-world',
-  title: 'Hello World',
-  license: 'MIT',
-  packageRepo: 'https://github.com/Start9Labs/hello-world-startos',
-  upstreamRepo: 'https://github.com/Start9Labs/hello-world',
-  marketingUrl: 'https://start9.com/',
-  donationUrl: 'https://donate.start9.com/',
+  id: 'coturn',
+  title: 'Coturn',
+  license: 'BSD-3-Clause',
+  packageRepo: 'https://github.com/Start9Labs/coturn-startos',
+  upstreamRepo: 'https://github.com/coturn/coturn',
+  marketingUrl: 'https://github.com/coturn/coturn',
+  donationUrl: null,
   description: { short, long },
   volumes: ['main'],
   images: {
-    'hello-world': {
-      source: { dockerTag: 'ghcr.io/start9labs/hello-world:2.0.0' },
-      arch: ['x86_64', 'aarch64', 'riscv64'],
+    coturn: {
+      source: { dockerTag: 'coturn/coturn:4.14.0' },
+      arch: ['x86_64', 'aarch64'],
     },
-  },
-  alerts: {
-    install: null,
-    update: null,
-    uninstall: null,
-    restore: null,
-    start: null,
-    stop: null,
   },
   dependencies: {},
 })

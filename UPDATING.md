@@ -1,17 +1,19 @@
 # Updating the upstream version
 
-This package wraps Start9 Labs' own [hello-world](https://github.com/Start9Labs/hello-world) source, which we build and publish ourselves as `ghcr.io/start9labs/hello-world`. "Upstream" here means that source repo, not the image namespace.
+This package wraps the upstream [coturn/coturn](https://github.com/coturn/coturn) project, distributed as the official `coturn/coturn` Docker image.
 
 ## Determining the upstream version
 
-- **hello-world** ([Start9Labs/hello-world](https://github.com/Start9Labs/hello-world)) — fetch the latest release tag:
+- **coturn** ([coturn/coturn](https://github.com/coturn/coturn)) — fetch the latest release tag:
 
   ```sh
-  gh release view -R Start9Labs/hello-world --json tagName -q .tagName
+  gh release view -R coturn/coturn --json tagName -q .tagName
   ```
 
-  The current pin lives in `startos/manifest/index.ts` at `images['hello-world'].source.dockerTag` (the version after the `:` in `ghcr.io/start9labs/hello-world:<version>`).
+  Confirm a matching image tag exists on [Docker Hub](https://hub.docker.com/r/coturn/coturn/tags). The current pin lives in `startos/manifest/index.ts` at `images.coturn.source.dockerTag` (the version after the `:` in `coturn/coturn:<version>`).
 
 ## Applying the bump
 
-- Bump `dockerTag` in `startos/manifest/index.ts` to `ghcr.io/start9labs/hello-world:<new version>` (drop the leading `v` from the release tag).
+1. Bump `dockerTag` in `startos/manifest/index.ts` to `coturn/coturn:<new version>`.
+2. Bump `version` in `startos/versions/current.ts` to `<new version>:0` (reset the StartOS revision to `0` on an upstream bump) and update `releaseNotes`.
+3. Build (`make`) and confirm the image pulls and the package packs.

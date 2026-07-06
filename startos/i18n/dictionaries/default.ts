@@ -2,14 +2,23 @@ export const DEFAULT_LANG = 'en_US'
 
 const dict = {
   // main.ts
-  'Starting Hello World!': 0,
-  'Web Interface': 1,
-  'The web interface is ready': 2,
-  'The web interface is not ready': 3,
+  'Starting Coturn!': 0,
+  'TURN Server': 1,
+  'The TURN server is ready': 2,
+  'The TURN server is not ready': 3,
+  'Waiting for a public domain': 4,
+  'Public Domain': 5,
+  'A public domain is active': 6,
+  'Add and enable a public domain so Coturn can serve TURN/STUN traffic.': 7,
+  'Provisioning the TLS certificate for your public domain…': 8,
 
   // interfaces.ts
-  'Web UI': 4,
-  'The web interface of Hello World': 5,
+  'TURN / STUN': 9,
+  'STUN and TURN relay endpoint over UDP and TCP': 10,
+  'TURN over TLS': 11,
+  'TURN relay over TLS and DTLS': 12,
+  'TURN Relay Ports': 13,
+  'UDP port range for TURN media relay': 14,
 } as const
 
 /**
