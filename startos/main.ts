@@ -1,9 +1,7 @@
-import { certFile, keyFile, turnserverConf } from './fileModels/coturn'
-import { storeJson } from './fileModels/store.json'
+import { turnserverConf, turnSecret } from './fileModels/coturn'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
-  configRevision,
   confPath,
   coturnMounts,
   dataDir,
@@ -15,37 +13,14 @@ import {
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Coturn!'))
 
-  const store = await storeJson.read().const(effects)
-  const staticAuthSecret = store?.TURN_SECRET
-
-  // The StartOS-managed certificate + key for a domain. Subscribes reactively so
-  // a renewal re-runs setupMain. Returns null while it is still provisioning.
-  const getCertificate = async (
-    domain: string,
-  ): Promise<{ certPem: string; keyPem: string } | null> => {
-    try {
-      const fullchain = await sdk
-        .getSslCertificate(effects, [domain], 'ecdsa')
-        .const()
-      if (!fullchain) return null
-      const keyPem = await sdk.getSslKey(effects, {
-        hostnames: [domain],
-        algorithm: 'ecdsa',
-      })
-      return {
-        certPem: fullchain.map((pem) => pem.trimEnd()).join('\n') + '\n',
-        keyPem,
-      }
-    } catch {
-      return null
-    }
-  }
+  const staticAuthSecret = await turnSecret.read().const(effects)
 
   // The enabled public clearnet domain (and public IPv4s) on the TURN host.
   // A public domain is a host-level address, so scan every interface on the
-  // host (turn, turns) rather than assuming which binding StartOS surfaces it
-  // on. Coturn needs a domain for its realm + TLS certificate, and the public
-  // IP for relay candidates; without a domain it can't operate.
+  // host rather than assuming which binding StartOS surfaces it on. Coturn
+  // needs the domain for its realm (and for StartOS to serve a publicly-trusted
+  // turns: certificate) and the public IPs for relay candidates; without a
+  // domain it can't operate.
   const domainInfo = await sdk.host
     .getOwn(effects, turnHostId, (host) => {
       const interfaces = host
@@ -65,13 +40,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .const()
 
-  // The StartOS-managed certificate for the domain. Subscribes reactively, so a
-  // renewal re-runs setupMain. May be briefly unavailable while it provisions.
-  const cert =
-    domainInfo && staticAuthSecret
-      ? await getCertificate(domainInfo.domain)
-      : null
-
   const coturnSub = sdk.SubContainer.of(
     effects,
     { imageId: 'coturn' },
@@ -79,11 +47,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
     'coturn-sub',
   )
 
-  if (!domainInfo || !staticAuthSecret || !cert) {
+  if (!domainInfo || !staticAuthSecret) {
     return sdk.Daemons.of(effects)
       .addDaemon('coturn', {
         subcontainer: coturnSub,
-        exec: { command: ['sleep', 'infinity'] },
+        exec: { command: ['sleep', 'infinity'], user: 'nobody' },
         ready: {
           display: i18n('TURN Server'),
           fn: async () => ({
@@ -96,20 +64,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
       .addHealthCheck('public-domain', {
         ready: {
           display: i18n('Public Domain'),
-          fn: async () =>
-            domainInfo
-              ? {
-                  result: 'loading' as const,
-                  message: i18n(
-                    'Provisioning the TLS certificate for your public domain…',
-                  ),
-                }
-              : {
-                  result: 'failure' as const,
-                  message: i18n(
-                    'Add and enable a public domain so Coturn can serve TURN/STUN traffic.',
-                  ),
-                },
+          fn: async () => ({
+            result: 'failure' as const,
+            message: i18n(
+              'Add and enable a public domain so Coturn can serve TURN/STUN traffic.',
+            ),
+          }),
         },
         requires: [],
       })
@@ -122,10 +82,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
   })
 
   await turnserverConf.write(effects, conf, { allowWriteAfterConst: true })
-  await certFile.write(effects, cert.certPem, { allowWriteAfterConst: true })
-  await keyFile.write(effects, cert.keyPem, { allowWriteAfterConst: true })
-
-  const configRev = configRevision(conf, cert.certPem, cert.keyPem)
 
   return sdk.Daemons.of(effects)
     .addOneshot('chown', {
@@ -141,7 +97,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
       exec: {
         command: ['turnserver', '-c', confPath],
         user: 'nobody',
-        env: { COTURN_CONFIG_REV: configRev },
       },
       ready: {
         display: i18n('TURN Server'),

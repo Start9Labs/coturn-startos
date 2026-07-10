@@ -10,15 +10,12 @@ const dict = {
   'Public Domain': 5,
   'A public domain is active': 6,
   'Add and enable a public domain so Coturn can serve TURN/STUN traffic.': 7,
-  'Provisioning the TLS certificate for your public domain…': 8,
 
   // interfaces.ts
-  'TURN / STUN': 9,
-  'STUN and TURN relay endpoint over UDP and TCP': 10,
-  'TURN over TLS': 11,
-  'TURN relay over TLS and DTLS': 12,
-  'TURN Relay Ports': 13,
-  'UDP port range for TURN media relay': 14,
+  'TURN / STUN': 8,
+  'STUN and TURN relay endpoint. Plain UDP/TCP, plus TLS (turns:) for networks that only allow TLS.': 9,
+  'TURN Relay Ports': 10,
+  'UDP port range for TURN media relay': 11,
 } as const
 
 /**

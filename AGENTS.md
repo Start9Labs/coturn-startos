@@ -10,9 +10,10 @@ Keep `README.md` (architecture, for developers and LLMs) and `instructions.md` (
 
 ## This repo
 
-- **Package id is `coturn`.** A single, general-purpose [Coturn](https://github.com/coturn/coturn) TURN/STUN server that other StartOS services (e.g. Jitsi Meet) depend on. No web UI. It requires a public clearnet domain and terminates TLS itself using the StartOS-issued certificate for that domain.
-- **Interfaces:** `turn` (3478 UDP+TCP), `turns` (5349 TLS/DTLS), and `turn-relay` (a UDP `bindPortRange` of 49152–49651 for media relay allocations).
-- **Auth:** TURN REST API — one `static-auth-secret` generated at install and published on the `main` volume (`store.json` → `TURN_SECRET`) for dependent packages to read.
+- **Package id is `coturn`.** A single, general-purpose [Coturn](https://github.com/coturn/coturn) TURN/STUN server that other StartOS services (e.g. Jitsi Meet) depend on. No web UI. It requires a public clearnet domain.
+- **TLS is edge-terminated, not by coturn.** coturn runs plain (`no-tls`/`no-dtls`). The single `turn` binding is plain `3478` (UDP+TCP) with an `addSsl` TLS listener on `5349`, so StartOS terminates the client's TLS with the domain's certificate — publicly trusted when the user picks Let's Encrypt — and forwards plaintext to coturn. `turns:` is therefore TLS-over-TCP only (no DTLS; browsers don't use it). Do **not** reintroduce `getSslCertificate`/self-terminated TLS — the local-CA cert it returns is not publicly trusted, which browsers reject for `turns:`.
+- **Interfaces:** one `turn` interface (its address set carries both the plain `turn:` address and the `ssl:true` `turns:` address), plus `turn-relay` (a UDP `bindPortRange` of 42000–42499 for media relay allocations, kept below StartOS's 49152+ ephemeral pool so the atomic range bind can't collide).
+- **Auth:** TURN REST API — one `static-auth-secret` generated at install and published on the `main` volume. It lives at `shared/turn-secret` (a plain-string file in its own subdirectory) so a dependent can mount **only** `subpath: 'shared'` read-only — never the volume root, which also holds `turnserver.conf` (the secret in plaintext) and `turndb`.
 
 ## Inspecting a running install
 

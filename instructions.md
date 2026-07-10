@@ -10,17 +10,17 @@ Coturn will not start relaying until you attach a public (clearnet) domain to it
 
 1. Make sure you have added a clearnet domain to your StartOS server (**System → Domains**).
 2. Open Coturn's **Interfaces** tab.
-3. On the **TURN / STUN** interface, add and enable your public domain.
+3. On the **TURN / STUN** interface, add and enable your public domain. Select **Let's Encrypt** as its certificate provider so that encrypted TURN (`turns:`) presents a publicly trusted certificate — web browsers reject an untrusted one.
 
-StartOS automatically issues a TLS certificate for that domain, so Coturn can offer encrypted TURN (`turns:`). Once the domain is enabled and the certificate is ready, Coturn starts and the **TURN Server** health check turns green.
+StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain is enabled, Coturn starts and the **TURN Server** health check turns green.
 
 ## 2. Open the required ports on your router
 
 Coturn needs the following ports forwarded from your router/ISP to your StartOS server so that remote peers can reach it:
 
 - **3478** — TCP and UDP (STUN / TURN)
-- **5349** — TCP and UDP (TURN over TLS/DTLS)
-- **49152–49651** — UDP (the media relay port range)
+- **5349** — TCP (TURN over TLS)
+- **42000–42499** — UDP (the media relay port range)
 
 If these ports are not open, calls may fail to connect for people outside your network.
 
@@ -31,10 +31,10 @@ Coturn is meant to be used by other StartOS services. A service that supports an
 ## What you get
 
 - **A shared TURN/STUN server** for real-time audio and video.
-- **Automatic TLS** using your public domain's certificate.
+- **Automatic TLS** at the StartOS edge using your public domain's certificate.
 - **No web UI and nothing to log into** — Coturn works in the background for the services that depend on it.
 
 ## Limitations
 
 - Coturn must be reachable from the public internet, so a public domain and open router ports are required. It cannot work over Tor or your LAN only.
-- Relay capacity is bounded by the 49152–49651 port range (about 500 simultaneous relayed streams), which is plenty for a personal server.
+- Relay capacity is bounded by the 42000–42499 port range (about 500 simultaneous relayed streams), which is plenty for a personal server.

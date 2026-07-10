@@ -8,48 +8,37 @@ import {
   tlsPort,
   turnHostId,
   turnInterfaceId,
-  turnsInterfaceId,
 } from './utils'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const turnMulti = sdk.MultiHost.of(effects, turnHostId)
 
-  // TURN/STUN over UDP + TCP. Coturn owns the socket; StartOS forwards the port.
+  // Plain STUN/TURN on UDP+TCP (turn:), plus an edge-terminated TLS endpoint
+  // (turns:) via addSsl: StartOS terminates the client's TLS with the domain's
+  // certificate — publicly trusted when the user selects Let's Encrypt — and
+  // forwards plaintext to coturn, so coturn serves no TLS of its own. Both
+  // addresses ride one binding; consumers pick turn vs turns by the `ssl` flag.
   const turnOrigin = await turnMulti.bindPort(listeningPort, {
     protocol: null,
     preferredExternalPort: listeningPort,
     secure: { ssl: false },
-    addSsl: null,
+    addSsl: {
+      preferredExternalPort: tlsPort,
+      alpn: null,
+      addXForwardedHeaders: false,
+      auth: null,
+    },
   })
   const turnReceipt = await turnOrigin.export([
     sdk.createInterface(effects, {
       name: i18n('TURN / STUN'),
       id: turnInterfaceId,
-      description: i18n('STUN and TURN relay endpoint over UDP and TCP'),
+      description: i18n(
+        'STUN and TURN relay endpoint. Plain UDP/TCP, plus TLS (turns:) for networks that only allow TLS.',
+      ),
       type: 'api',
       masked: false,
-      schemeOverride: null,
-      username: null,
-      path: '',
-      query: {},
-    }),
-  ])
-
-  // TURN over TLS/DTLS. Coturn terminates TLS with the domain's certificate.
-  const turnsOrigin = await turnMulti.bindPort(tlsPort, {
-    protocol: null,
-    preferredExternalPort: tlsPort,
-    secure: { ssl: false },
-    addSsl: null,
-  })
-  const turnsReceipt = await turnsOrigin.export([
-    sdk.createInterface(effects, {
-      name: i18n('TURN over TLS'),
-      id: turnsInterfaceId,
-      description: i18n('TURN relay over TLS and DTLS'),
-      type: 'api',
-      masked: false,
-      schemeOverride: null,
+      schemeOverride: { ssl: 'turns', noSsl: 'turn' },
       username: null,
       path: '',
       query: {},
@@ -70,5 +59,5 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     }),
   )
 
-  return [turnReceipt, turnsReceipt]
+  return [turnReceipt]
 })
