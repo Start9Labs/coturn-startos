@@ -38,7 +38,9 @@
 | Command       | `turnserver -c /var/lib/coturn/turnserver.conf`  |
 | Runs as       | `nobody` (a `chown` oneshot prepares the volume) |
 
-Coturn runs plain — it serves no TLS of its own. Any input change (public domain, public IP, shared secret) re-runs `main`, which rewrites the config and restarts the daemon.
+Coturn runs plain — it serves no TLS of its own. `main` is `setupMain` → `Daemons.of`, and reads its host reactively, so a change to the public domain, public IP, or shared secret re-runs `main`, rewrites the config, and restarts the daemon.
+
+> **Known limitation:** because that host read is a `.const()` under `Daemons.of`, adding or removing a public domain restarts the whole service, which collides with StartOS's port-forward / IPv6-firewall probes ("tests cannot be performed because the service is not running"). Moving `main` to a `Daemons.dynamic` reconciler — so the daemon set reconciles in place and the service stays `running` — is blocked on [start-technologies#3470](https://github.com/Start9Labs/start-technologies/issues/3470). See `TODO.md`.
 
 ---
 
@@ -55,8 +57,8 @@ Coturn runs plain — it serves no TLS of its own. Any input change (public doma
 ## Installation and First-Run Flow
 
 1. On install, the package generates a random shared TURN secret and stores it in `shared/turn-secret` (regenerated automatically if it is ever lost).
-2. Coturn cannot serve traffic until the user **adds and enables a public (clearnet) domain** for the TURN interface. Until then coturn idles and the **Public Domain** health check fails.
-3. Once a public domain is enabled, the config is written and coturn starts. Select **Let's Encrypt** for that domain in the interface settings so the `turns:` endpoint presents a publicly trusted certificate.
+2. Coturn cannot serve traffic until the user **adds and enables a public (clearnet) domain** for the TURN interface. Until then coturn idles and its reachability health checks fail.
+3. Once a public domain is enabled, the config is written and coturn starts. Select **Let's Encrypt** for that domain so the `turns:` endpoint is publicly trusted. The domain also propagates to the **TURN Relay Ports** interface but its public address stays disabled by default, so the user must **manually enable the relay interface's public IPv4** for the relay range to be forwarded (the `relay-ports` health check flags this until they do).
 
 ---
 
@@ -125,10 +127,14 @@ None.
 
 ## Health Checks
 
-| Check         | Method                      | Behavior                                                                        |
-| ------------- | --------------------------- | ------------------------------------------------------------------------------- |
-| TURN Server   | Port listening (3478)       | Success once coturn is listening; `disabled` while it waits for a public domain |
-| Public Domain | Enabled public-domain check | **Fails** until a public clearnet domain is added and enabled                   |
+Each required public address has its own check, so a disabled one names exactly what to re-enable.
+
+| Check                | Method                                | Behavior                                                                        |
+| -------------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
+| TURN Server          | Port listening (3478)                 | Success once coturn is listening; `disabled` while it waits for a public domain |
+| TURN / STUN (3478)   | Public domain on the `turn:` address  | **Fails** until the public domain is enabled on the `turn:` (3478) address      |
+| TURN over TLS (5349) | Public domain on the `turns:` address | **Fails** until the public domain is enabled on the `turns:` (5349) address     |
+| TURN Relay Ports     | Range publicly forwarded              | **Fails** until the relay range's public IPv4 is enabled                        |
 
 ---
 

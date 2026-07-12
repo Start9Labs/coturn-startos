@@ -6,8 +6,10 @@ import {
   coturnMounts,
   dataDir,
   listeningPort,
+  relayStartPort,
   renderTurnserverConf,
   turnHostId,
+  turnInterfaceId,
 } from './utils'
 
 export const main = sdk.setupMain(async ({ effects }) => {
@@ -15,28 +17,50 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   const staticAuthSecret = await turnSecret.read().const(effects)
 
-  // The enabled public clearnet domain (and public IPv4s) on the TURN host.
-  // A public domain is a host-level address, so scan every interface on the
-  // host rather than assuming which binding StartOS surfaces it on. Coturn
-  // needs the domain for its realm (and for StartOS to serve a publicly-trusted
-  // turns: certificate) and the public IPs for relay candidates; without a
-  // domain it can't operate.
-  const domainInfo = await sdk.host
+  // Everything Coturn needs from its host, in one reactive read:
+  //   domain / externalIps      — realm + external-ip for turnserver.conf
+  //   turnDomain / turnsDomain  — public domain enabled on the turn: (3478,
+  //                               ssl:false) and turns: (5349, ssl:true) address
+  //   relayForwarded            — the relay range's ports are actually forwarded
+  //                               (the range has no addressInfo, so this is read
+  //                               from the host's computed portForwards)
+  // Each of the last three is surfaced as its own health check below, naming the
+  // exact address to enable when it is off.
+  //
+  // KNOWN LIMITATION: under `Daemons.of`, this `.const()` re-runs main via
+  // `effects.restart()`, so adding or removing a domain restarts the whole
+  // service — which collides with StartOS's port-forward / IPv6-firewall probes
+  // ("tests cannot be performed because the service is not running"). The fix is
+  // to return `Daemons.dynamic()` from `setupMain` so the daemon set reconciles
+  // in place; that composition is currently not expressible in the SDK. Tracked
+  // in Start9Labs/start-technologies#3470 — switch once it lands. See TODO.md.
+  const net = await sdk.host
     .getOwn(effects, turnHostId, (host) => {
-      const interfaces = host
-        ? Object.values(host.bindings).flatMap((b) =>
-            Object.values(b.interfaces),
-          )
-        : []
-      const publicHostnames = (kind: 'domain' | 'ipv4') =>
-        interfaces.flatMap((i) =>
-          i.addressInfo
-            .filter({ visibility: 'public', kind })
-            .hostnames.map((h) => h.hostname),
-        )
-      const domain = publicHostnames('domain')[0] ?? null
-      const externalIps = [...new Set(publicHostnames('ipv4'))]
-      return domain ? { domain, externalIps } : null
+      const turnAi =
+        host?.bindings[listeningPort]?.interfaces[turnInterfaceId]?.addressInfo
+      const domains =
+        turnAi?.filter({ visibility: 'public', kind: 'domain' }).hostnames ?? []
+      const externalIps = [
+        ...new Set(
+          turnAi
+            ?.filter({ visibility: 'public', kind: 'ipv4' })
+            .hostnames.map((h) => h.hostname) ?? [],
+        ),
+      ]
+      const range = host?.bindingRanges[relayStartPort]
+      return {
+        domain: domains[0]?.hostname ?? null,
+        externalIps,
+        turnDomain: domains.some((h) => !h.ssl),
+        turnsDomain: domains.some((h) => h.ssl),
+        relayForwarded:
+          !!range?.enabled &&
+          (host?.portForwards ?? []).some(
+            (pf) =>
+              pf.src.endsWith(`:${range.externalStartPort}`) &&
+              pf.count === range.numberOfPorts,
+          ),
+      }
     })
     .const()
 
@@ -47,74 +71,109 @@ export const main = sdk.setupMain(async ({ effects }) => {
     'coturn-sub',
   )
 
-  if (!domainInfo || !staticAuthSecret) {
-    return sdk.Daemons.of(effects)
-      .addDaemon('coturn', {
-        subcontainer: coturnSub,
-        exec: { command: ['sleep', 'infinity'], user: 'nobody' },
-        ready: {
-          display: i18n('TURN Server'),
-          fn: async () => ({
-            result: 'disabled' as const,
-            message: i18n('Waiting for a public domain'),
-          }),
-        },
-        requires: [],
-      })
-      .addHealthCheck('public-domain', {
-        ready: {
-          display: i18n('Public Domain'),
-          fn: async () => ({
-            result: 'failure' as const,
-            message: i18n(
-              'Add and enable a public domain so Coturn can serve TURN/STUN traffic.',
-            ),
-          }),
-        },
-        requires: [],
-      })
+  if (net?.domain && staticAuthSecret) {
+    const conf = renderTurnserverConf({
+      realm: net.domain,
+      externalIps: net.externalIps,
+      staticAuthSecret,
+    })
+    await turnserverConf.write(effects, conf, { allowWriteAfterConst: true })
   }
 
-  const conf = renderTurnserverConf({
-    realm: domainInfo.domain,
-    externalIps: domainInfo.externalIps,
-    staticAuthSecret,
-  })
+  const daemons =
+    net?.domain && staticAuthSecret
+      ? sdk.Daemons.of(effects)
+          .addOneshot('chown', {
+            subcontainer: coturnSub,
+            exec: {
+              command: ['chown', '-R', 'nobody:nogroup', dataDir],
+              user: 'root',
+            },
+            requires: [],
+          })
+          .addDaemon('coturn', {
+            subcontainer: coturnSub,
+            exec: {
+              command: ['turnserver', '-c', confPath],
+              user: 'nobody',
+            },
+            ready: {
+              display: i18n('TURN Server'),
+              fn: () =>
+                sdk.healthCheck.checkPortListening(effects, listeningPort, {
+                  successMessage: i18n('The TURN server is ready'),
+                  errorMessage: i18n('The TURN server is not ready'),
+                }),
+            },
+            requires: ['chown'],
+          })
+      : sdk.Daemons.of(effects).addDaemon('coturn', {
+          subcontainer: coturnSub,
+          exec: { command: ['sleep', 'infinity'], user: 'nobody' },
+          ready: {
+            display: i18n('TURN Server'),
+            fn: async () => ({
+              result: 'disabled' as const,
+              message: i18n('Waiting for a public domain'),
+            }),
+          },
+          requires: [],
+        })
 
-  await turnserverConf.write(effects, conf, { allowWriteAfterConst: true })
-
-  return sdk.Daemons.of(effects)
-    .addOneshot('chown', {
-      subcontainer: coturnSub,
-      exec: {
-        command: ['chown', '-R', 'nobody:nogroup', dataDir],
-        user: 'root',
+  // One health check per required public address, each naming the exact address
+  // to enable if it is off.
+  return daemons
+    .addHealthCheck('turn-address', {
+      ready: {
+        display: i18n('TURN / STUN (3478)'),
+        fn: async () =>
+          net?.turnDomain
+            ? {
+                result: 'success' as const,
+                message: i18n('Plain TURN/STUN is publicly reachable.'),
+              }
+            : {
+                result: 'failure' as const,
+                message: i18n(
+                  'Enable the public domain on the turn: (3478) address of the TURN / STUN interface.',
+                ),
+              },
       },
       requires: [],
     })
-    .addDaemon('coturn', {
-      subcontainer: coturnSub,
-      exec: {
-        command: ['turnserver', '-c', confPath],
-        user: 'nobody',
-      },
+    .addHealthCheck('turns-address', {
       ready: {
-        display: i18n('TURN Server'),
-        fn: () =>
-          sdk.healthCheck.checkPortListening(effects, listeningPort, {
-            successMessage: i18n('The TURN server is ready'),
-            errorMessage: i18n('The TURN server is not ready'),
-          }),
+        display: i18n('TURN over TLS (5349)'),
+        fn: async () =>
+          net?.turnsDomain
+            ? {
+                result: 'success' as const,
+                message: i18n('TURN over TLS is publicly reachable.'),
+              }
+            : {
+                result: 'failure' as const,
+                message: i18n(
+                  'Enable the public domain on the turns: (5349) address of the TURN / STUN interface.',
+                ),
+              },
       },
-      requires: ['chown'],
+      requires: [],
     })
-    .addHealthCheck('public-domain', {
+    .addHealthCheck('relay-ports', {
       ready: {
-        display: i18n('Public Domain'),
-        fn: async () => ({
-          result: 'success' as const,
-          message: i18n('A public domain is active'),
-        }),
+        display: i18n('TURN Relay Ports'),
+        fn: async () =>
+          net?.relayForwarded
+            ? {
+                result: 'success' as const,
+                message: i18n('The relay port range is publicly reachable.'),
+              }
+            : {
+                result: 'failure' as const,
+                message: i18n(
+                  'Enable the public IPv4 address on the TURN Relay Ports interface.',
+                ),
+              },
       },
       requires: [],
     })
