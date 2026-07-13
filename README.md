@@ -38,9 +38,11 @@
 | Command       | `turnserver -c /var/lib/coturn/turnserver.conf`  |
 | Runs as       | `nobody` (a `chown` oneshot prepares the volume) |
 
-Coturn runs plain — it serves no TLS of its own. `main` is `setupMain` → `Daemons.of`, and reads its host reactively, so a change to the public domain, public IP, or shared secret re-runs `main`, rewrites the config, and restarts the daemon.
+Coturn runs plain — it serves no TLS of its own. `main` is `setupMain` returning a **`Daemons.dynamic` reconciler** (requires start-sdk ≥ 2.0.4), which matters for how it reacts to network changes:
 
-> **Known limitation:** because that host read is a `.const()` under `Daemons.of`, adding or removing a public domain restarts the whole service, which collides with StartOS's port-forward / IPv6-firewall probes ("tests cannot be performed because the service is not running"). Moving `main` to a `Daemons.dynamic` reconciler — so the daemon set reconciles in place and the service stays `running` — is blocked on [start-technologies#3470](https://github.com/Start9Labs/start-technologies/issues/3470). See `TODO.md`.
+- **Adding or removing a public domain reconciles the daemon set in place** — the service stays `running` rather than restarting. A full restart here would collide with StartOS's port-forward / IPv6-firewall probes, which abort with "tests cannot be performed because the service is not running."
+- **`turnserver` restarts only when the generated config actually changes.** The realm and `external-ip` are the only host inputs to `turnserver.conf`, and a hash of the rendered config rides in the daemon's `CONFIG_REV` env so the reconciler restarts it precisely when the content differs (a rewritten file alone is invisible to the daemon diff).
+- **Enabling or disabling an individual public address updates only its health check.** The checks read exposure live per poll (`.once()`), so a toggle never rebuilds the daemon set or bounces `turnserver`.
 
 ---
 
