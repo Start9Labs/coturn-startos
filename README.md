@@ -38,11 +38,11 @@
 | Command       | `turnserver -c /var/lib/coturn/turnserver.conf`  |
 | Runs as       | `nobody` (a `chown` oneshot prepares the volume) |
 
-Coturn runs plain — it serves no TLS of its own. `main` is `setupMain` returning a **`Daemons.dynamic` reconciler** (requires start-sdk ≥ 2.0.4), which matters for how it reacts to network changes:
+Coturn runs plain — it serves no TLS of its own. `main` is a standard `setupMain` returning a static `Daemons.of` chain, which reacts to network changes as follows:
 
-- **Adding or removing a public domain reconciles the daemon set in place** — the service stays `running` rather than restarting. A full restart here would collide with StartOS's port-forward / IPv6-firewall probes, which abort with "tests cannot be performed because the service is not running."
-- **`turnserver` restarts only when the generated config actually changes.** The realm and `external-ip` are the only host inputs to `turnserver.conf`, and a hash of the rendered config rides in the daemon's `CONFIG_REV` env so the reconciler restarts it precisely when the content differs (a rewritten file alone is invisible to the daemon diff).
-- **Enabling or disabling an individual public address updates only its health check.** The checks read exposure live per poll (`.once()`), so a toggle never rebuilds the daemon set or bounces `turnserver`.
+- **Adding or removing a public domain restarts the service.** The realm and `external-ip` are the only host inputs to `turnserver.conf`, and they are read with `.const()`, so a change re-runs `main`, regenerates the config, and bounces `turnserver`. The realm is any public domain **added** to the shared host (read from the binding's `available` addresses, not the enabled set), so coturn comes up even when the domain was added via one interface and not yet enabled on the other.
+- **Enabling or disabling an individual public address updates only its health check.** Per-address exposure is **watched** with `.onChange` into a local snapshot the checks read synchronously — the OS pushes changes rather than the checks polling the host API — so toggling the `turn:`, `turns:`, or relay address re-colors its check without rebuilding the daemon set or bouncing `turnserver`. Those reachability checks also poll faster while **failing** (`statusTrigger`, 5 s vs the 30 s steady state) so they flip green quickly once the address is enabled.
+- **The reachability checks exist only once a domain is added.** Before that, the sole health check is the `TURN Server` daemon check, which **fails** (never `disabled`) with a prompt to add a public domain.
 
 ---
 
@@ -52,15 +52,15 @@ Coturn runs plain — it serves no TLS of its own. `main` is `setupMain` returni
 | ------ | ----------------- | ----------------------------------------------------------------- |
 | `main` | `/var/lib/coturn` | `turnserver.conf`, `shared/turn-secret` (shared secret), `turndb` |
 
-`turnserver.conf` is regenerated on every start from the enabled public domain, its public IP(s), and the shared secret. `shared/turn-secret` holds the generated TURN secret and persists across restarts; it lives in its own subdirectory so a dependent can mount just that path (see [the consumer contract](#authentication-and-the-consumer-contract)).
+`turnserver.conf` is regenerated on every start from the public domain added to the host, its enabled public IP(s), and the shared secret. `shared/turn-secret` holds the generated TURN secret and persists across restarts; it lives in its own subdirectory so a dependent can mount just that path (see [the consumer contract](#authentication-and-the-consumer-contract)).
 
 ---
 
 ## Installation and First-Run Flow
 
 1. On install, the package generates a random shared TURN secret and stores it in `shared/turn-secret` (regenerated automatically if it is ever lost).
-2. Coturn cannot serve traffic until the user **adds and enables a public (clearnet) domain** for the TURN interface. Until then coturn idles and its reachability health checks fail.
-3. Once a public domain is enabled, the config is written and coturn starts. Select **Let's Encrypt** for that domain so the `turns:` endpoint is publicly trusted. The domain also propagates to the **TURN Relay Ports** interface but its public address stays disabled by default, so the user must **manually enable the relay interface's public IPv4** for the relay range to be forwarded (the `relay-ports` health check flags this until they do).
+2. Coturn cannot serve traffic until the user **adds a public (clearnet) domain** to the shared TURN host (from either the **TURN/STUN** or **Relay Ports** interface). Until then coturn idles and its sole health check — `TURN Server` — **fails** asking for a domain; the per-address reachability checks do not yet exist.
+3. Once a public domain is added, the config is written and coturn starts. Select **Let's Encrypt** for that domain so the `turns:` endpoint is publicly trusted. Adding the domain on the **TURN/STUN** interface enables its `turn:` and `turns:` addresses; the **Relay Ports** interface receives the domain too, but its public IPv4 stays **disabled by default**, so the user must **manually enable it** for the relay range to be forwarded. Each per-address health check names the exact address to switch on while it is off.
 
 ---
 
@@ -68,7 +68,7 @@ Coturn runs plain — it serves no TLS of its own. `main` is `setupMain` returni
 
 There is no user-facing configuration. `turnserver.conf` is generated by the package:
 
-- `realm` / `server-name` — the enabled public domain
+- `realm` / `server-name` — the public domain added to the host
 - `external-ip` — the host's public IPv4 address(es)
 - `no-tls` / `no-dtls` — coturn serves plain; StartOS terminates TLS at the edge
 - `listening-port` `3478`
@@ -80,11 +80,11 @@ There is no user-facing configuration. `turnserver.conf` is generated by the pac
 
 ## Network Access and Interfaces
 
-| Interface        | External Port(s) | Protocol  | Purpose                                             |
-| ---------------- | ---------------- | --------- | --------------------------------------------------- |
-| TURN / STUN      | 3478             | UDP + TCP | STUN binding and plain TURN (`turn:`)               |
-| ↳ TLS address    | 5349             | TCP (TLS) | Edge-terminated TURN over TLS (`turns:`)            |
-| TURN Relay Ports | 42000–42499      | UDP       | Media relay allocations (bound via `bindPortRange`) |
+| Interface     | External Port(s) | Protocol  | Purpose                                             |
+| ------------- | ---------------- | --------- | --------------------------------------------------- |
+| TURN/STUN     | 3478             | UDP + TCP | STUN binding and plain TURN (`turn:`)               |
+| ↳ TLS address | 5349             | TCP (TLS) | Edge-terminated TURN over TLS (`turns:`)            |
+| Relay Ports   | 42000–42499      | UDP       | Media relay allocations (bound via `bindPortRange`) |
 
 The `turn` and `turns` addresses ride a single binding: `3478` is plain UDP/TCP, and StartOS adds a TLS listener on `5349` (see [TLS Termination](#tls-termination)). Consumers pick the plain vs TLS address by its `ssl` flag.
 
@@ -129,14 +129,14 @@ None.
 
 ## Health Checks
 
-Each required public address has its own check, so a disabled one names exactly what to re-enable.
+Before a public domain is added, the only check is `TURN Server`, which **fails** with a prompt to add one. Once a domain exists, three per-address checks appear, each naming the exact address to enable while it is off.
 
-| Check                | Method                                | Behavior                                                                        |
-| -------------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
-| TURN Server          | Port listening (3478)                 | Success once coturn is listening; `disabled` while it waits for a public domain |
-| TURN / STUN (3478)   | Public domain on the `turn:` address  | **Fails** until the public domain is enabled on the `turn:` (3478) address      |
-| TURN over TLS (5349) | Public domain on the `turns:` address | **Fails** until the public domain is enabled on the `turns:` (5349) address     |
-| TURN Relay Ports     | Range publicly forwarded              | **Fails** until the relay range's public IPv4 is enabled                        |
+| Check           | Method                   | Behavior                                                                                                      |
+| --------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| TURN Server     | Port listening (3478)    | **Fails** with "add a public domain" until one is added; succeeds once coturn is listening. Never `disabled`. |
+| TURN/STUN       | `turn:` address enabled  | Only exists once a domain is added. **Fails** until the `turn:` address is enabled, naming it.                |
+| TURN/STUN (TLS) | `turns:` address enabled | Only exists once a domain is added. **Fails** until the `turns:` address is enabled, naming it.               |
+| Relay Ports     | Relay range forwarded    | Only exists once a domain is added. **Fails** until the relay range's public IPv4 is enabled.                 |
 
 ---
 

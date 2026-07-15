@@ -31,7 +31,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   })
   const turnReceipt = await turnOrigin.export([
     sdk.createInterface(effects, {
-      name: i18n('TURN / STUN'),
+      name: i18n('TURN/STUN'),
       id: turnInterfaceId,
       description: i18n(
         'STUN and TURN relay endpoint. Plain UDP/TCP, plus TLS (turns:) for networks that only allow TLS.',
@@ -54,7 +54,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   await relayOrigin.export(
     sdk.createRangeInterface(effects, {
       id: relayInterfaceId,
-      name: i18n('TURN Relay Ports'),
+      name: i18n('Relay Ports'),
       description: i18n('UDP port range for TURN media relay'),
     }),
   )

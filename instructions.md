@@ -6,14 +6,14 @@ To be useful, Coturn must be reachable from the public internet. That means two 
 
 ## 1. Add and enable a public domain
 
-Coturn will not start relaying until you attach a public (clearnet) domain to it. Until you do, Coturn's reachability health checks show failures.
+Coturn will not start relaying until you attach a public (clearnet) domain to it. Until you do, its **TURN Server** health check fails and asks you to add one; the per-address reachability checks below only appear once a domain exists.
 
 1. Make sure you have added a clearnet domain to your StartOS server (**System → Domains**).
 2. Open Coturn's **Interfaces** tab.
-3. On the **TURN / STUN** interface, add and enable your public domain. Select **Let's Encrypt** as its certificate provider so that encrypted TURN (`turns:`) presents a publicly trusted certificate — web browsers reject an untrusted one. This enables the **public domain** on both of that interface's addresses: **`turn:` (3478)** for plain TURN/STUN and **`turns:` (5349)** for TURN over TLS.
-4. Open the **TURN Relay Ports** interface and **enable its public IPv4 address.** This interface receives your domain automatically, but its public address is **disabled by default** — you have to turn it on yourself, or the media relay range (42000–42499) is not forwarded and calls that need a relay fail.
+3. On the **TURN/STUN** interface, add and enable your public domain. Select **Let's Encrypt** as its certificate provider so that encrypted TURN (`turns:`) presents a publicly trusted certificate — web browsers reject an untrusted one. This enables the **public domain** on both of that interface's addresses: **`turn:` (3478)** for plain TURN/STUN and **`turns:` (5349)** for TURN over TLS.
+4. Open the **Relay Ports** interface and **enable its public IPv4 address.** This interface receives your domain automatically, but its public address is **disabled by default** — you have to turn it on yourself, or the media relay range (42000–42499) is not forwarded and calls that need a relay fail.
 
-Coturn needs all three of those addresses enabled. If any is off, that part of Coturn stops working, and its matching health check — **TURN / STUN (3478)**, **TURN over TLS (5349)**, or **TURN Relay Ports** — fails, naming the exact address to switch on.
+Coturn needs all three of those addresses enabled. If any is off, that part of Coturn stops working, and its matching health check — **TURN/STUN**, **TURN/STUN (TLS)**, or **Relay Ports** — fails, naming the exact address to switch on.
 
 StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain and the relay address are enabled, Coturn's health checks turn green.
 
