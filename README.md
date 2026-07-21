@@ -1,16 +1,12 @@
 <p align="center">
-  <img src="icon.svg" alt="Hello World Logo" width="21%">
+  <img src="icon.svg" alt="Coturn Logo" width="21%">
 </p>
 
-# Hello World on StartOS
+# Coturn on StartOS
 
-> **Upstream repo:** <https://github.com/Start9Labs/hello-world>
+> **Upstream repo:** <https://github.com/coturn/coturn>
 
-A minimal reference service for StartOS. It displays a simple web page — nothing more. Use [this repository](https://github.com/Start9Labs/hello-world-startos) as a template when packaging a new service for StartOS.
-
-## Getting Started
-
-To learn how to use this template to create your own StartOS service package, see the [Packaging Guide](https://docs.start9.com/packaging).
+[Coturn](https://github.com/coturn/coturn) is a mature, standards-compliant TURN and STUN server. It relays audio and video for real-time applications (video calls, messaging) when peers are behind NAT or restrictive firewalls. This package runs a single, general-purpose Coturn instance that other StartOS services — such as Jitsi Meet — depend on for connectivity.
 
 ---
 
@@ -21,6 +17,8 @@ To learn how to use this template to create your own StartOS service package, se
 - [Installation and First-Run Flow](#installation-and-first-run-flow)
 - [Configuration Management](#configuration-management)
 - [Network Access and Interfaces](#network-access-and-interfaces)
+- [TLS Termination](#tls-termination)
+- [Authentication and the Consumer Contract](#authentication-and-the-consumer-contract)
 - [Actions (StartOS UI)](#actions-startos-ui)
 - [Backups and Restore](#backups-and-restore)
 - [Health Checks](#health-checks)
@@ -33,46 +31,83 @@ To learn how to use this template to create your own StartOS service package, se
 
 ## Image and Container Runtime
 
-| Property      | Value                                  |
-| ------------- | -------------------------------------- |
-| Image         | `ghcr.io/start9labs/hello-world`       |
-| Architectures | x86_64, aarch64, riscv64               |
-| Command       | `hello-world`                          |
+| Property      | Value                                            |
+| ------------- | ------------------------------------------------ |
+| Image         | `coturn/coturn` (tag pinned in the manifest)     |
+| Architectures | x86_64, aarch64                                  |
+| Command       | `turnserver -c /var/lib/coturn/turnserver.conf`  |
+| Runs as       | `nobody` (a `chown` oneshot prepares the volume) |
+
+Coturn runs plain — it serves no TLS of its own. `main` is a standard `setupMain` returning a static `Daemons.of` chain, which reacts to network changes as follows:
+
+- **Adding or removing a public domain restarts the service.** The realm and `external-ip` are the only host inputs to `turnserver.conf`, and they are read with `.const()`, so a change re-runs `main`, regenerates the config, and bounces `turnserver`. The realm is any public domain **added** to the shared host (read from the binding's `available` addresses, not the enabled set), so coturn comes up even when the domain was added via one interface and not yet enabled on the other.
+- **Enabling or disabling an individual public address updates only its health check.** Per-address exposure is **watched** with `.onChange` into a local snapshot the checks read synchronously — the OS pushes changes rather than the checks polling the host API — so toggling the `turn:`, `turns:`, or relay address re-colors its check without rebuilding the daemon set or bouncing `turnserver`. Those reachability checks also poll faster while **failing** (`statusTrigger`, 5 s vs the 30 s steady state) so they flip green quickly once the address is enabled.
+- **The reachability checks exist only once a domain is added.** Before that, the sole health check is the `TURN Server` daemon check, which **fails** (never `disabled`) with a prompt to add a public domain.
 
 ---
 
 ## Volume and Data Layout
 
-| Volume | Mount Point | Purpose         |
-| ------ | ----------- | --------------- |
-| `main` | `/data`     | Persistent data |
+| Volume | Mount Point       | Contents                                                          |
+| ------ | ----------------- | ----------------------------------------------------------------- |
+| `main` | `/var/lib/coturn` | `turnserver.conf`, `shared/turn-secret` (shared secret), `turndb` |
+
+`turnserver.conf` is regenerated on every start from the public domain added to the host, its enabled public IP(s), and the shared secret. `shared/turn-secret` holds the generated TURN secret and persists across restarts; it lives in its own subdirectory so a dependent can mount just that path (see [the consumer contract](#authentication-and-the-consumer-contract)).
 
 ---
 
 ## Installation and First-Run Flow
 
-No special setup. Install and start — the web page is immediately available.
+1. On install, the package generates a random shared TURN secret and stores it in `shared/turn-secret` (regenerated automatically if it is ever lost).
+2. Coturn cannot serve traffic until the user **adds a public (clearnet) domain** to the shared TURN host (from either the **TURN/STUN** or **Relay Ports** interface). Until then coturn idles and its sole health check — `TURN Server` — **fails** asking for a domain; the per-address reachability checks do not yet exist.
+3. Once a public domain is added, the config is written and coturn starts. Select **Let's Encrypt** for that domain so the `turns:` endpoint is publicly trusted. Adding the domain on the **TURN/STUN** interface enables its `turn:` and `turns:` addresses; the **Relay Ports** interface receives the domain too, but its public IPv4 stays **disabled by default**, so the user must **manually enable it** for the relay range to be forwarded. Each per-address health check names the exact address to switch on while it is off.
 
 ---
 
 ## Configuration Management
 
-No configurable settings. The service runs with no user-facing configuration.
+There is no user-facing configuration. `turnserver.conf` is generated by the package:
+
+- `realm` / `server-name` — the public domain added to the host
+- `external-ip` — the host's public IPv4 address(es)
+- `no-tls` / `no-dtls` — coturn serves plain; StartOS terminates TLS at the edge
+- `listening-port` `3478`
+- `min-port` / `max-port` — the relay UDP range (`42000`–`42499`)
+- `use-auth-secret` + `static-auth-secret` — TURN REST API authentication
+- `no-multicast-peers` + `denied-peer-ip` — block relaying to private, loopback-adjacent, and special-use ranges so clients can't reach the LAN or the container network
 
 ---
 
 ## Network Access and Interfaces
 
-| Interface | Port | Protocol | Purpose              |
-| --------- | ---- | -------- | -------------------- |
-| Web UI    | 80   | HTTP     | Hello World web page |
+| Interface     | External Port(s) | Protocol  | Purpose                                             |
+| ------------- | ---------------- | --------- | --------------------------------------------------- |
+| TURN/STUN     | 3478             | UDP + TCP | STUN binding and plain TURN (`turn:`)               |
+| ↳ TLS address | 5349             | TCP (TLS) | Edge-terminated TURN over TLS (`turns:`)            |
+| Relay Ports   | 42000–42499      | UDP       | Media relay allocations (bound via `bindPortRange`) |
 
-**Access methods:**
+The `turn` and `turns` addresses ride a single binding: `3478` is plain UDP/TCP, and StartOS adds a TLS listener on `5349` (see [TLS Termination](#tls-termination)). Consumers pick the plain vs TLS address by its `ssl` flag.
 
-- LAN IP with unique port
-- `<hostname>.local` with unique port
-- Tor `.onion` address
-- Custom domains (if configured)
+TURN requires **inbound reachability from arbitrary peers**, so the user must add and enable a **public clearnet domain** and forward ports `3478` (UDP + TCP), `5349` (TCP) and the relay UDP range (`42000`–`42499`) at their router/ISP. Coturn is not usable over Tor or LAN only.
+
+---
+
+## TLS Termination
+
+Coturn does **not** terminate TLS itself. It binds plain `3478` with an `addSsl` TLS listener on `5349`, so StartOS terminates the client's TLS at the platform edge and forwards plaintext to coturn. When the user selects **Let's Encrypt** for the public domain, the `turns:` certificate is **publicly trusted** — which browser WebRTC clients require (they reject an untrusted TURN certificate with no click-through).
+
+This deliberately serves TURN-over-TLS on **TCP only**; DTLS (`turns:` over UDP) is not offered, because no mainstream browser uses it — a `turns:?transport=udp` configuration already downgrades to TCP+TLS. Plain STUN reflexive discovery and plain TURN both run over UDP/TCP `3478` and are unaffected.
+
+---
+
+## Authentication and the Consumer Contract
+
+Coturn uses the **TURN REST API** (shared-secret) model: one `static-auth-secret` from which each consuming service mints short-lived, per-session credentials (`username = <expiry-timestamp>`, `password = base64(HMAC-SHA1(secret, username))`).
+
+A dependent StartOS package integrates with coturn by:
+
+1. **Hostname / ports** — reading coturn's public domain and its `turn`/`turns` ports from the `turn` interface via `sdk.host.get(effects, { hostId: 'turn', packageId: 'coturn' })`, selecting the plain address (`ssl: false`) for `turn:`/`stun:` and the TLS address (`ssl: true`) for `turns:`.
+2. **Shared secret** — mounting coturn's `main` volume **read-only at subpath `shared`** (a directory) and reading the `turn-secret` file inside it. Mount only `shared`, never the volume root.
 
 ---
 
@@ -86,7 +121,7 @@ None.
 
 **Included in backup:**
 
-- `main` volume
+- `main` volume (includes `shared/turn-secret`, so the shared secret — and therefore dependent services — keep working after a restore)
 
 **Restore behavior:** Volume is fully restored before the service starts.
 
@@ -94,9 +129,14 @@ None.
 
 ## Health Checks
 
-| Check         | Method              | Messages                                                           |
-| ------------- | ------------------- | ------------------------------------------------------------------ |
-| Web Interface | Port listening (80) | Success: "The web interface is ready" / Error: "The web interface is not ready" |
+Before a public domain is added, the only check is `TURN Server`, which **fails** with a prompt to add one. Once a domain exists, three per-address checks appear, each naming the exact address to enable while it is off.
+
+| Check           | Method                   | Behavior                                                                                                      |
+| --------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| TURN Server     | Port listening (3478)    | **Fails** with "add a public domain" until one is added; succeeds once coturn is listening. Never `disabled`. |
+| TURN/STUN       | `turn:` address enabled  | Only exists once a domain is added. **Fails** until the `turn:` address is enabled, naming it.                |
+| TURN/STUN (TLS) | `turns:` address enabled | Only exists once a domain is added. **Fails** until the `turns:` address is enabled, naming it.               |
+| Relay Ports     | Relay range forwarded    | Only exists once a domain is added. **Fails** until the relay range's public IPv4 is enabled.                 |
 
 ---
 
@@ -108,27 +148,40 @@ None.
 
 ## Limitations and Differences
 
-1. **No meaningful functionality** — this is a reference/template package only
+1. **A public clearnet domain is required.** TURN relies on inbound reachability from arbitrary peers, so coturn cannot run Tor-only or LAN-only.
+2. **`turns:` is TLS-over-TCP only.** DTLS is not offered — see [TLS Termination](#tls-termination). This costs no browser WebRTC functionality.
+3. **Relay capacity is bounded by the port range.** The relay range is 500 UDP ports (`42000`–`42499`), roughly 500 concurrent relay allocations — ample for a self-hosted deployment but not unlimited.
+4. **Shared-secret (TURN REST API) authentication only.** Static per-user long-term credentials are not configured.
 
 ---
 
 ## What Is Unchanged from Upstream
 
-The service is identical to upstream. There are no modifications.
+The Coturn binary and its behavior are exactly as shipped in the upstream `coturn/coturn` image. StartOS only generates the configuration it runs with and terminates TLS in front of it.
 
 ---
 
 ## Quick Reference for AI Consumers
 
 ```yaml
-package_id: hello-world
-image: ghcr.io/start9labs/hello-world
-architectures: [x86_64, aarch64, riscv64]
+package_id: coturn
+image: coturn/coturn
+architectures: [x86_64, aarch64]
+runs_as: nobody
+tls: edge-terminated by StartOS (addSsl); coturn runs no-tls/no-dtls
 volumes:
-  main: /data
-ports:
-  ui: 80
-dependencies: none
-startos_managed_env_vars: none
+  main: /var/lib/coturn
+interfaces:
+  turn: # one binding, two addresses
+    plain: { port: 3478, protocol: udp+tcp } # turn:/stun:, ssl:false
+    tls: { port: 5349, protocol: tcp, ssl: true } # turns:, edge-terminated
+  turn-relay: { ports: 42000-42499, protocol: udp }
+auth: turn-rest-api (use-auth-secret / static-auth-secret)
+consumer_contract:
+  hostname_ports: sdk.host.get(effects, { hostId: 'turn', packageId: 'coturn' })
+  # turn = ssl:false address, turns = ssl:true address on the `turn` interface
+  shared_secret: mount coturn main volume read-only at subpath 'shared', read file 'turn-secret'
 actions: none
+dependencies: none
+requires_public_domain: true
 ```

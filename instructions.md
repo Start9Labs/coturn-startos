@@ -1,25 +1,43 @@
-# Hello World
+# Coturn
 
-You've installed Hello World — there's nothing to configure and nothing to set up. This page covers how to open the page it serves and where to read more. (If you're a developer, Hello World is also the recommended packaging template.)
+Coturn is a TURN/STUN relay server. On its own it has no web interface — other services (for example **Jitsi Meet**) use it to connect audio and video calls when participants are behind home routers, mobile carriers, or restrictive firewalls.
 
-## Documentation
+To be useful, Coturn must be reachable from the public internet. That means two things: a **public domain** and some **router port forwarding**.
 
-- [Hello World upstream docs](https://github.com/Start9Labs/hello-world/blob/master/README.md) — the README for the web server this package runs.
-- [StartOS Packaging Guide](https://docs.start9.com/packaging) — how to build a StartOS service package from that template.
+## 1. Add and enable a public domain
 
-## What you get on StartOS
+Coturn will not start relaying until you attach a public (clearnet) domain to it. Until you do, its **TURN Server** health check fails and asks you to add one; the per-address reachability checks below only appear once a domain exists.
 
-- **A running web server** that serves a single static page.
-- **Nothing to configure and no actions** — the service starts on its own and is immediately usable.
+1. Make sure you have added a clearnet domain to your StartOS server (**System → Domains**).
+2. Open Coturn's **Interfaces** tab.
+3. On the **TURN/STUN** interface, add and enable your public domain. Select **Let's Encrypt** as its certificate provider so that encrypted TURN (`turns:`) presents a publicly trusted certificate — web browsers reject an untrusted one. This enables the **public domain** on both of that interface's addresses: **`turn:` (3478)** for plain TURN/STUN and **`turns:` (5349)** for TURN over TLS.
+4. Open the **Relay Ports** interface and **enable its public IPv4 address.** This interface receives your domain automatically, but its public address is **disabled by default** — you have to turn it on yourself, or the media relay range (42000–42499) is not forwarded and calls that need a relay fail.
 
-## Getting set up
+Coturn needs all three of those addresses enabled. If any is off, that part of Coturn stops working, and its matching health check — **TURN/STUN**, **TURN/STUN (TLS)**, or **Relay Ports** — fails, naming the exact address to switch on.
 
-There's no setup wizard, no admin password, no first-run prompt — Hello World is usable the moment it starts. To view the page it serves:
+StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain and the relay address are enabled, Coturn's health checks turn green.
 
-1. Open Hello World's **Dashboard** tab.
-2. Click the **Web UI** interface to open the served page in your browser.
+## 2. Open the required ports on your router
+
+Coturn needs the following ports forwarded from your router/ISP to your StartOS server so that remote peers can reach it:
+
+- **3478** — TCP and UDP (STUN / TURN)
+- **5349** — TCP (TURN over TLS)
+- **42000–42499** — UDP (the media relay port range)
+
+If these ports are not open, calls may fail to connect for people outside your network.
+
+## 3. Connect a service to Coturn
+
+Coturn is meant to be used by other StartOS services. A service that supports an external TURN server (such as Jitsi Meet) will depend on Coturn and pick up its address and shared secret automatically once Coturn is installed and running with a public domain — there is nothing to copy by hand.
+
+## What you get
+
+- **A shared TURN/STUN server** for real-time audio and video.
+- **Automatic TLS** at the StartOS edge using your public domain's certificate.
+- **No web UI and nothing to log into** — Coturn works in the background for the services that depend on it.
 
 ## Limitations
 
-- Hello World is intentionally minimal. It is not a useful service on its own; it exists to demonstrate the StartOS packaging system.
-- The page content is static and cannot be customized through the StartOS UI.
+- Coturn must be reachable from the public internet, so a public domain and open router ports are required. It cannot work over Tor or your LAN only.
+- Relay capacity is bounded by the 42000–42499 port range (about 500 simultaneous relayed streams), which is plenty for a personal server.
