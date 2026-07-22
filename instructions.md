@@ -1,43 +1,47 @@
 # Coturn
 
-Coturn is a TURN/STUN relay server. On its own it has no web interface — other services (for example **Jitsi Meet**) use it to connect audio and video calls when participants are behind home routers, mobile carriers, or restrictive firewalls.
+Coturn relays nothing until you attach a public (clearnet) domain to it and forward its ports at your router. Both steps are below, and neither can be skipped.
 
-To be useful, Coturn must be reachable from the public internet. That means two things: a **public domain** and some **router port forwarding**.
+## Documentation
 
-## 1. Add and enable a public domain
+- [Coturn wiki](https://github.com/coturn/coturn/wiki) — the upstream documentation index.
+- [`turnserver` reference](https://github.com/coturn/coturn/wiki/turnserver) — the upstream reference for every Coturn setting.
 
-Coturn will not start relaying until you attach a public (clearnet) domain to it. Until you do, its **TURN Server** health check fails and asks you to add one; the per-address reachability checks below only appear once a domain exists.
+## What you get on StartOS
 
-1. Make sure you have added a clearnet domain to your StartOS server (**System → Domains**).
-2. Open Coturn's **Interfaces** tab.
-3. On the **TURN/STUN** interface, add and enable your public domain. Select **Let's Encrypt** as its certificate provider so that encrypted TURN (`turns:`) presents a publicly trusted certificate — web browsers reject an untrusted one. This enables the **public domain** on both of that interface's addresses: **`turn:` (3478)** for plain TURN/STUN and **`turns:` (5349)** for TURN over TLS.
-4. Open the **Relay Ports** interface and **enable its public IPv4 address.** This interface receives your domain automatically, but its public address is **disabled by default** — you have to turn it on yourself, or the media relay range (42000–42499) is not forwarded and calls that need a relay fail.
+A shared TURN/STUN relay that other StartOS services — Jitsi Meet, for example — use to connect audio and video calls when participants are behind home routers, mobile carriers, or restrictive firewalls. There is no web interface and nothing to log into; Coturn works in the background for the services that depend on it.
 
-Coturn needs all three of those addresses enabled. If any is off, that part of Coturn stops working, and its matching health check — **TURN/STUN**, **TURN/STUN (TLS)**, or **Relay Ports** — fails, naming the exact address to switch on.
+It exposes two interfaces:
 
-StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain and the relay address are enabled, Coturn's health checks turn green.
+- **TURN/STUN** — port `3478` (UDP and TCP) for STUN and plain TURN (`turn:`), plus port `5349` (TCP) for TURN over TLS (`turns:`). StartOS terminates the TLS for you with your domain's certificate.
+- **Relay Ports** — the UDP range `42000`–`42499` that relayed audio and video flows through.
 
-## 2. Open the required ports on your router
+A shared secret is generated for you at install, and dependent services read it themselves — there is nothing to copy by hand.
 
-Coturn needs the following ports forwarded from your router/ISP to your StartOS server so that remote peers can reach it:
+## Getting set up
 
-- **3478** — TCP and UDP (STUN / TURN)
-- **5349** — TCP (TURN over TLS)
-- **42000–42499** — UDP (the media relay port range)
+Until a public domain is attached, Coturn's **TURN Server** health check fails asking for one, and the reachability checks below do not appear yet.
 
-If these ports are not open, calls may fail to connect for people outside your network.
+1. Open Coturn's **Interfaces** tab and select the **TURN/STUN** interface.
+2. Click **Add Domain**, choose **Public**, and enter a domain you control.
+3. For **Certificate Authority**, select **Let's Encrypt**. Browsers reject an untrusted certificate for `turns:` with no way to click through, so a locally issued one will not work.
+4. Saving enables the domain on both of that interface's addresses — `turn:` on `3478` and `turns:` on `5349`.
+5. Open the **Relay Ports** interface. It receives your domain automatically, but its public IPv4 address is **disabled by default** — switch it on yourself, or relayed calls fail.
+6. Forward these ports from your router to your StartOS server:
+   - **3478** — TCP and UDP
+   - **5349** — TCP
+   - **42000–42499** — UDP
 
-## 3. Connect a service to Coturn
+   StartOS lists every forward it expects under **System → Gateways → View port forwards**.
 
-Coturn is meant to be used by other StartOS services. A service that supports an external TURN server (such as Jitsi Meet) will depend on Coturn and pick up its address and shared secret automatically once Coturn is installed and running with a public domain — there is nothing to copy by hand.
+All three addresses have to stay enabled. If one is off, its health check — **TURN/STUN**, **TURN/STUN (TLS)**, or **Relay Ports** — fails and names the exact address to switch on.
 
-## What you get
+## Using Coturn
 
-- **A shared TURN/STUN server** for real-time audio and video.
-- **Automatic TLS** at the StartOS edge using your public domain's certificate.
-- **No web UI and nothing to log into** — Coturn works in the background for the services that depend on it.
+Coturn is there for other services to use. A service that supports an external TURN server declares Coturn as a dependency and picks up its address and shared secret automatically, once Coturn is running with a public domain. Install and set up Coturn first, then install the service that needs it.
+
+Day to day there is nothing to operate: watch the four health checks on the **Dashboard** tab, and read **Logs** if calls stop connecting.
 
 ## Limitations
 
-- Coturn must be reachable from the public internet, so a public domain and open router ports are required. It cannot work over Tor or your LAN only.
-- Relay capacity is bounded by the 42000–42499 port range (about 500 simultaneous relayed streams), which is plenty for a personal server.
+Coturn has to be reachable from the public internet by arbitrary peers, so it cannot run over Tor or on your LAN alone. A public domain and open router ports are required.

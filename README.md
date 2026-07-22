@@ -4,7 +4,11 @@
 
 # Coturn on StartOS
 
-> **Upstream repo:** <https://github.com/coturn/coturn>
+> **Upstream docs:** <https://github.com/coturn/coturn/wiki>
+>
+> Everything not listed in this document should behave the same as upstream
+> Coturn. If a feature, setting, or behavior is not mentioned here, the upstream
+> documentation is accurate and fully applicable.
 
 [Coturn](https://github.com/coturn/coturn) is a mature, standards-compliant TURN and STUN server. It relays audio and video for real-time applications (video calls, messaging) when peers are behind NAT or restrictive firewalls. This package runs a single, general-purpose Coturn instance that other StartOS services — such as Jitsi Meet — depend on for connectivity.
 
@@ -25,6 +29,7 @@
 - [Dependencies](#dependencies)
 - [Limitations and Differences](#limitations-and-differences)
 - [What Is Unchanged from Upstream](#what-is-unchanged-from-upstream)
+- [Contributing](#contributing)
 - [Quick Reference for AI Consumers](#quick-reference-for-ai-consumers)
 
 ---
@@ -136,7 +141,7 @@ Before a public domain is added, the only check is `TURN Server`, which **fails*
 | TURN Server     | Port listening (3478)    | **Fails** with "add a public domain" until one is added; succeeds once coturn is listening. Never `disabled`. |
 | TURN/STUN       | `turn:` address enabled  | Only exists once a domain is added. **Fails** until the `turn:` address is enabled, naming it.                |
 | TURN/STUN (TLS) | `turns:` address enabled | Only exists once a domain is added. **Fails** until the `turns:` address is enabled, naming it.               |
-| Relay Ports     | Relay range forwarded    | Only exists once a domain is added. **Fails** until the relay range's public IPv4 is enabled.                 |
+| Relay Ports     | Relay range WAN-exposed  | Only exists once a domain is added. **Fails** until the relay range's public IPv4 is enabled.                 |
 
 ---
 
@@ -158,6 +163,12 @@ None.
 ## What Is Unchanged from Upstream
 
 The Coturn binary and its behavior are exactly as shipped in the upstream `coturn/coturn` image. StartOS only generates the configuration it runs with and terminates TLS in front of it.
+
+---
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md).
 
 ---
 
