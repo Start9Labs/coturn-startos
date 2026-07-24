@@ -13,7 +13,7 @@ export const manifest = setupManifest({
   volumes: ['main'],
   images: {
     coturn: {
-      source: { dockerTag: 'coturn/coturn:4.14.0' },
+      source: { dockerTag: 'coturn/coturn:4.15.0' },
       arch: ['x86_64', 'aarch64'],
     },
   },
