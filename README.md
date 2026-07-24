@@ -25,6 +25,7 @@
 - [Dependencies](#dependencies)
 - [Limitations and Differences](#limitations-and-differences)
 - [What Is Unchanged from Upstream](#what-is-unchanged-from-upstream)
+- [Contributing](#contributing)
 - [Quick Reference for AI Consumers](#quick-reference-for-ai-consumers)
 
 ---
@@ -158,6 +159,12 @@ None.
 ## What Is Unchanged from Upstream
 
 The Coturn binary and its behavior are exactly as shipped in the upstream `coturn/coturn` image. StartOS only generates the configuration it runs with and terminates TLS in front of it.
+
+---
+
+## Contributing
+
+Development and packaging notes for this repository live in [AGENTS.md](AGENTS.md).
 
 ---
 
