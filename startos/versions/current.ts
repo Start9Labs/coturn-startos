@@ -1,7 +1,7 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '4.14.0:0',
+  version: '4.14.0:1',
   releaseNotes: {
     en_US: 'Initial release of Coturn for StartOS.',
     es_ES: 'Versión inicial de Coturn para StartOS.',
