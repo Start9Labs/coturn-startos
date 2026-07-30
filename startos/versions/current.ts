@@ -1,43 +1,43 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '4.15.0:1',
+  version: '4.16.0:0',
   releaseNotes: {
-    en_US: `Updated Coturn to 4.15.0.
+    en_US: `Updated Coturn to 4.16.0.
 
-- Security: STUN attributes after MESSAGE-INTEGRITY are now ignored (GHSA-5538-7cxj-5jcc), plus hardened mobility session resume, ACME handling, and several buffer/overflow fixes.
-- New: \`--log-min-level\` log filtering, \`--drain-min-allocations\` shutdown threshold, and RFC 8016 make-before-break mobility handoff.
-- Reliability: alignment-safe wire-buffer access, fixed shutdown OpenSSL races, and an alternate-server deadlock.
+- Security: DTLS half-open handshakes are now capped and non-handshake records from unknown sources are dropped, the per-thread peer demultiplexing table is bounded, and a new \`--stateless-nonce\` option bounds memory use under STUN floods.
+- Standards: ChannelBind is limited to the RFC 8656 channel range, an Allocate that cannot be satisfied now returns 508, and RFC 3489 handling moved out of \`--stun-backward-compatibility\` into its own deprecated flag.
+- Fixes: a null dereference when the \`--prometheus-*\` options were given without a value, and duplicate XOR-PEER-ADDRESS entries in Send are now first-wins.
 
-Full release notes: https://github.com/coturn/coturn/releases/tag/4.15.0`,
-    es_ES: `Coturn actualizado a 4.15.0.
+Full changelog: https://github.com/coturn/coturn/blob/4.16.0/ChangeLog`,
+    es_ES: `Coturn actualizado a 4.16.0.
 
-- Seguridad: ahora se ignoran los atributos STUN posteriores a MESSAGE-INTEGRITY (GHSA-5538-7cxj-5jcc), además de reforzar la reanudación de sesiones de movilidad, el manejo de ACME y varias correcciones de desbordamiento de búfer.
-- Novedades: filtrado de registros con \`--log-min-level\`, umbral de apagado \`--drain-min-allocations\` y transferencia de movilidad make-before-break de RFC 8016.
-- Fiabilidad: acceso al búfer con alineación segura, corrección de condiciones de carrera de OpenSSL al apagar y un bloqueo del servidor alternativo.
+- Seguridad: ahora se limita el número de handshakes DTLS a medio abrir y se descartan los paquetes que no son de handshake procedentes de orígenes desconocidos, se acota la tabla de demultiplexado de pares por hilo y la nueva opción \`--stateless-nonce\` limita el uso de memoria ante avalanchas de STUN.
+- Estándares: ChannelBind se restringe al rango de canales de RFC 8656, una solicitud Allocate que no se puede satisfacer devuelve ahora 508 y el manejo de RFC 3489 se ha trasladado de \`--stun-backward-compatibility\` a su propia opción obsoleta.
+- Correcciones: una desreferencia nula cuando las opciones \`--prometheus-*\` se indicaban sin valor, y los atributos XOR-PEER-ADDRESS duplicados en Send ahora respetan el primero.
 
-Notas de la versión completas: https://github.com/coturn/coturn/releases/tag/4.15.0`,
-    de_DE: `Coturn auf 4.15.0 aktualisiert.
+Registro de cambios completo: https://github.com/coturn/coturn/blob/4.16.0/ChangeLog`,
+    de_DE: `Coturn auf 4.16.0 aktualisiert.
 
-- Sicherheit: STUN-Attribute nach MESSAGE-INTEGRITY werden nun ignoriert (GHSA-5538-7cxj-5jcc), zusätzlich gehärtete Mobility-Sitzungswiederaufnahme, ACME-Behandlung und mehrere Pufferüberlauf-Korrekturen.
-- Neu: Log-Filterung mit \`--log-min-level\`, Herunterfahr-Schwellwert \`--drain-min-allocations\` und RFC-8016 Make-before-break-Mobility-Übergabe.
-- Zuverlässigkeit: ausrichtungssicherer Zugriff auf Wire-Puffer, behobene OpenSSL-Races beim Herunterfahren und ein Deadlock beim Alternativ-Server.
+- Sicherheit: halb offene DTLS-Handshakes werden nun begrenzt und Nicht-Handshake-Pakete von unbekannten Quellen verworfen, die Peer-Demultiplex-Tabelle pro Thread ist begrenzt, und die neue Option \`--stateless-nonce\` begrenzt den Speicherverbrauch bei STUN-Fluten.
+- Standards: ChannelBind ist auf den Kanalbereich von RFC 8656 beschränkt, eine nicht erfüllbare Allocate-Anfrage liefert jetzt 508, und die RFC-3489-Behandlung wurde von \`--stun-backward-compatibility\` in eine eigene veraltete Option verschoben.
+- Korrekturen: eine Null-Dereferenzierung, wenn die \`--prometheus-*\`-Optionen ohne Wert angegeben wurden, sowie doppelte XOR-PEER-ADDRESS-Einträge in Send, bei denen nun der erste gilt.
 
-Vollständige Versionshinweise: https://github.com/coturn/coturn/releases/tag/4.15.0`,
-    pl_PL: `Zaktualizowano Coturn do 4.15.0.
+Vollständiges Änderungsprotokoll: https://github.com/coturn/coturn/blob/4.16.0/ChangeLog`,
+    pl_PL: `Zaktualizowano Coturn do 4.16.0.
 
-- Bezpieczeństwo: atrybuty STUN po MESSAGE-INTEGRITY są teraz ignorowane (GHSA-5538-7cxj-5jcc), a także wzmocniono wznawianie sesji mobilności, obsługę ACME i kilka poprawek przepełnienia bufora.
-- Nowości: filtrowanie dzienników \`--log-min-level\`, próg wyłączania \`--drain-min-allocations\` oraz przekazywanie mobilności make-before-break z RFC 8016.
-- Niezawodność: bezpieczny pod względem wyrównania dostęp do bufora, naprawione wyścigi OpenSSL przy wyłączaniu oraz zakleszczenie serwera alternatywnego.
+- Bezpieczeństwo: liczba na wpół otwartych uzgodnień DTLS jest teraz ograniczona, a pakiety spoza uzgadniania z nieznanych źródeł są odrzucane; tablica demultipleksowania peerów na wątek ma limit, a nowa opcja \`--stateless-nonce\` ogranicza zużycie pamięci podczas zalewu pakietami STUN.
+- Standardy: ChannelBind został ograniczony do zakresu kanałów z RFC 8656, niemożliwe do spełnienia żądanie Allocate zwraca teraz 508, a obsługa RFC 3489 została przeniesiona z \`--stun-backward-compatibility\` do osobnej, przestarzałej opcji.
+- Poprawki: wyłuskanie wskaźnika NULL, gdy opcje \`--prometheus-*\` podano bez wartości, oraz zduplikowane atrybuty XOR-PEER-ADDRESS w Send — liczy się teraz pierwszy z nich.
 
-Pełne informacje o wydaniu: https://github.com/coturn/coturn/releases/tag/4.15.0`,
-    fr_FR: `Coturn mis à jour vers 4.15.0.
+Pełna lista zmian: https://github.com/coturn/coturn/blob/4.16.0/ChangeLog`,
+    fr_FR: `Coturn mis à jour vers 4.16.0.
 
-- Sécurité : les attributs STUN situés après MESSAGE-INTEGRITY sont désormais ignorés (GHSA-5538-7cxj-5jcc), avec un renforcement de la reprise de session de mobilité, de la gestion ACME et plusieurs corrections de dépassement de tampon.
-- Nouveautés : filtrage des journaux \`--log-min-level\`, seuil d'arrêt \`--drain-min-allocations\` et transfert de mobilité make-before-break RFC 8016.
-- Fiabilité : accès aux tampons réseau avec alignement sûr, correction de conditions de concurrence OpenSSL à l'arrêt et d'un interblocage du serveur alternatif.
+- Sécurité : les négociations DTLS à moitié ouvertes sont désormais plafonnées et les paquets hors négociation provenant de sources inconnues sont ignorés, la table de démultiplexage des pairs par thread est bornée, et la nouvelle option \`--stateless-nonce\` limite la consommation mémoire lors de déluges STUN.
+- Normes : ChannelBind est limité à la plage de canaux de la RFC 8656, une requête Allocate impossible à satisfaire renvoie maintenant 508, et la prise en charge de la RFC 3489 a été déplacée de \`--stun-backward-compatibility\` vers sa propre option obsolète.
+- Corrections : un déréférencement null lorsque les options \`--prometheus-*\` étaient fournies sans valeur, et les attributs XOR-PEER-ADDRESS dupliqués dans Send retiennent désormais le premier.
 
-Notes de version complètes: https://github.com/coturn/coturn/releases/tag/4.15.0`,
+Journal des modifications complet : https://github.com/coturn/coturn/blob/4.16.0/ChangeLog`,
   },
   migrations: {
     up: async ({ effects }) => {},
