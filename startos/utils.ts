@@ -61,9 +61,8 @@ export function renderTurnserverConf(cfg: {
   const lines = [
     `listening-port=${listeningPort}`,
     // StartOS terminates TLS at the edge and forwards plaintext, so coturn does
-    // not run its own TLS/DTLS listeners.
+    // not run its own TLS listener. DTLS stays off by not passing `dtls`.
     'no-tls',
-    'no-dtls',
     `min-port=${relayStartPort}`,
     `max-port=${relayEndPort}`,
     `realm=${cfg.realm}`,
@@ -75,7 +74,6 @@ export function renderTurnserverConf(cfg: {
     ...deniedPeerRanges.map((range) => `denied-peer-ip=${range}`),
     `pidfile=${dataDir}/turnserver.pid`,
     'log-file=stdout',
-    'simple-log',
     ...cfg.externalIps.map((ip) => `external-ip=${ip}`),
   ]
   return lines.join('\n') + '\n'
