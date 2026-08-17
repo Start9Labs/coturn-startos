@@ -1,4 +1,9 @@
-import { turnserverConf, turnSecret } from './fileModels/coturn'
+import {
+  staticAuth,
+  staticTurnserverConf,
+  turnserverConf,
+  turnSecret,
+} from './fileModels/coturn'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
@@ -7,7 +12,12 @@ import {
   dataDir,
   listeningPort,
   relayStartPort,
+  renderStaticTurnserverConf,
   renderTurnserverConf,
+  staticConfPath,
+  staticListeningPort,
+  staticRelayStartPort,
+  staticTurnInterfaceId,
   turnHostId,
   turnInterfaceId,
 } from './utils'
@@ -16,6 +26,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Coturn!'))
 
   const staticAuthSecret = await turnSecret.read().const(effects)
+
+  // The second listener's account. Read with `.const()` so switching it on or
+  // off, or rotating the password, regenerates its config and restarts it.
+  // `null` unless it is both switched on and holds a credential.
+  const staticAccount = await staticAuth
+    .read((s) => (s.enabled && s.password ? s : null))
+    .const(effects)
 
   // Daemon slice — the host inputs turnserver.conf depends on (realm + external
   // IPs). Read with `.const()`, so adding or removing a public domain (or
@@ -80,6 +97,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
   })
   await turnserverConf.write(effects, conf, { allowWriteAfterConst: true })
 
+  if (staticAccount) {
+    await staticTurnserverConf.write(
+      effects,
+      renderStaticTurnserverConf({
+        realm: net.realm,
+        externalIps: net.externalIps,
+        username: staticAccount.username,
+        password: staticAccount.password,
+      }),
+      { allowWriteAfterConst: true },
+    )
+  }
+
   // Per-address exposure feeds only the health checks, so rather than have each
   // check poll the host API we WATCH it with `.onChange` and keep the latest
   // snapshot in a local the checks read synchronously — the OS pushes changes
@@ -98,9 +128,23 @@ export const main = sdk.setupMain(async ({ effects }) => {
     turnsEnabled: false,
     turnsUrl: null as string | null,
     relayForwarded: false,
+    staticTurnEnabled: false,
+    staticTurnUrl: null as string | null,
+    staticRelayForwarded: false,
   }
   sdk.host
     .getOwn(effects, turnHostId, (host) => {
+      const rangeForwarded = (startPort: number) => {
+        const range = host?.bindingRanges[startPort]
+        return (
+          !!range?.enabled &&
+          (host?.portForwards ?? []).some(
+            (pf) =>
+              pf.src.endsWith(`:${range.externalStartPort}`) &&
+              pf.count === range.numberOfPorts,
+          )
+        )
+      }
       const bind = host?.bindings[listeningPort]
       const turnAi = bind?.interfaces[turnInterfaceId]?.addressInfo
       const enabledDomains =
@@ -111,19 +155,24 @@ export const main = sdk.setupMain(async ({ effects }) => {
         )
         return h && turnAi ? turnAi.toUrl(h) : null
       }
-      const range = host?.bindingRanges[relayStartPort]
+      const staticBind = host?.bindings[staticListeningPort]
+      const staticAi =
+        staticBind?.interfaces[staticTurnInterfaceId]?.addressInfo
+      const staticPlain = staticBind?.addresses.available.find(
+        (a) => a.metadata.kind === 'public-domain' && !a.ssl,
+      )
       return {
         turnEnabled: enabledDomains.some((h) => !h.ssl),
         turnUrl: domainUrl(false),
         turnsEnabled: enabledDomains.some((h) => h.ssl),
         turnsUrl: domainUrl(true),
-        relayForwarded:
-          !!range?.enabled &&
-          (host?.portForwards ?? []).some(
-            (pf) =>
-              pf.src.endsWith(`:${range.externalStartPort}`) &&
-              pf.count === range.numberOfPorts,
-          ),
+        relayForwarded: rangeForwarded(relayStartPort),
+        staticTurnEnabled: !!staticAi
+          ?.filter({ visibility: 'public', kind: 'domain' })
+          .hostnames.some((h) => !h.ssl),
+        staticTurnUrl:
+          staticPlain && staticAi ? staticAi.toUrl(staticPlain) : null,
+        staticRelayForwarded: rangeForwarded(staticRelayStartPort),
       }
     })
     .onChange((next) => {
@@ -142,83 +191,153 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // One health check per required public address, each naming the exact address
   // to enable when it is off. Each reads the watched `exposure` snapshot, so a
   // toggle updates the check without an API round-trip or touching turnserver.
-  return sdk.Daemons.of(effects)
-    .addOneshot('chown', {
-      subcontainer: coturnSub,
-      exec: {
-        command: ['chown', '-R', 'nobody:nogroup', dataDir],
-        user: 'root',
-      },
-      requires: [],
-    })
-    .addDaemon('coturn', {
-      subcontainer: coturnSub,
-      exec: { command: ['turnserver', '-c', confPath], user: 'nobody' },
-      ready: {
-        display: i18n('TURN Server'),
-        fn: () =>
-          sdk.healthCheck.checkPortListening(effects, listeningPort, {
-            successMessage: i18n('The TURN server is ready'),
-            errorMessage: i18n('The TURN server is not ready'),
-          }),
-      },
-      requires: ['chown'],
-    })
-    .addHealthCheck('turn-address', {
-      ready: {
-        display: i18n('TURN/STUN'),
-        trigger: reachabilityTrigger,
-        fn: () =>
-          exposure.turnEnabled
-            ? {
-                result: 'success' as const,
-                message: i18n('Plain TURN/STUN is publicly reachable.'),
-              }
-            : {
-                result: 'failure' as const,
-                message: i18n('Enable ${address} on the TURN/STUN interface.', {
-                  address: exposure.turnUrl ?? 'turn:',
-                }),
+  return (
+    sdk.Daemons.of(effects)
+      .addOneshot('chown', {
+        subcontainer: coturnSub,
+        exec: {
+          command: ['chown', '-R', 'nobody:nogroup', dataDir],
+          user: 'root',
+        },
+        requires: [],
+      })
+      .addDaemon('coturn', {
+        subcontainer: coturnSub,
+        exec: { command: ['turnserver', '-c', confPath], user: 'nobody' },
+        ready: {
+          display: i18n('TURN Server'),
+          fn: () =>
+            sdk.healthCheck.checkPortListening(effects, listeningPort, {
+              successMessage: i18n('The TURN server is ready'),
+              errorMessage: i18n('The TURN server is not ready'),
+            }),
+        },
+        requires: ['chown'],
+      })
+      .addHealthCheck('turn-address', {
+        ready: {
+          display: i18n('TURN/STUN'),
+          trigger: reachabilityTrigger,
+          fn: () =>
+            exposure.turnEnabled
+              ? {
+                  result: 'success' as const,
+                  message: i18n('Plain TURN/STUN is publicly reachable.'),
+                }
+              : {
+                  result: 'failure' as const,
+                  message: i18n(
+                    'Enable ${address} on the TURN/STUN interface.',
+                    {
+                      address: exposure.turnUrl ?? 'turn:',
+                    },
+                  ),
+                },
+        },
+        requires: [],
+      })
+      .addHealthCheck('turns-address', {
+        ready: {
+          display: i18n('TURN/STUN (TLS)'),
+          trigger: reachabilityTrigger,
+          fn: () =>
+            exposure.turnsEnabled
+              ? {
+                  result: 'success' as const,
+                  message: i18n('TURN over TLS is publicly reachable.'),
+                }
+              : {
+                  result: 'failure' as const,
+                  message: i18n(
+                    'Enable ${address} on the TURN/STUN interface.',
+                    {
+                      address: exposure.turnsUrl ?? 'turns:',
+                    },
+                  ),
+                },
+        },
+        requires: [],
+      })
+      .addHealthCheck('relay-ports', {
+        ready: {
+          display: i18n('Relay Ports'),
+          trigger: reachabilityTrigger,
+          fn: () =>
+            exposure.relayForwarded
+              ? {
+                  result: 'success' as const,
+                  message: i18n('The relay port range is publicly reachable.'),
+                }
+              : {
+                  result: 'failure' as const,
+                  message: i18n(
+                    'Enable the public IPv4 address on the Relay Ports interface.',
+                  ),
+                },
+        },
+        requires: [],
+      })
+      // Second turnserver process, present only while the username-and-password
+      // listener is switched on. Its own config, database, pidfile and relay
+      // block; it shares the container and so must not share any of those.
+      .addDaemon('coturn-static', () =>
+        staticAccount
+          ? {
+              subcontainer: coturnSub,
+              exec: {
+                command: ['turnserver', '-c', staticConfPath],
+                user: 'nobody',
               },
-      },
-      requires: [],
-    })
-    .addHealthCheck('turns-address', {
-      ready: {
-        display: i18n('TURN/STUN (TLS)'),
-        trigger: reachabilityTrigger,
-        fn: () =>
-          exposure.turnsEnabled
-            ? {
-                result: 'success' as const,
-                message: i18n('TURN over TLS is publicly reachable.'),
-              }
-            : {
-                result: 'failure' as const,
-                message: i18n('Enable ${address} on the TURN/STUN interface.', {
-                  address: exposure.turnsUrl ?? 'turns:',
-                }),
+              ready: {
+                display: i18n('TURN Server (Password)'),
+                fn: () =>
+                  sdk.healthCheck.checkPortListening(
+                    effects,
+                    staticListeningPort,
+                    {
+                      successMessage: i18n('The TURN server is ready'),
+                      errorMessage: i18n('The TURN server is not ready'),
+                    },
+                  ),
               },
-      },
-      requires: [],
-    })
-    .addHealthCheck('relay-ports', {
-      ready: {
-        display: i18n('Relay Ports'),
-        trigger: reachabilityTrigger,
-        fn: () =>
-          exposure.relayForwarded
-            ? {
-                result: 'success' as const,
-                message: i18n('The relay port range is publicly reachable.'),
-              }
-            : {
-                result: 'failure' as const,
-                message: i18n(
-                  'Enable the public IPv4 address on the Relay Ports interface.',
-                ),
+              requires: ['chown'] as const,
+            }
+          : null,
+      )
+      // One check for both halves of that listener's exposure rather than a pair,
+      // since neither is any use without the other: a relayed call needs the
+      // address to reach and the range to relay through.
+      .addHealthCheck('turn-static-address', () =>
+        staticAccount
+          ? {
+              ready: {
+                display: i18n('TURN/STUN (Password)'),
+                trigger: reachabilityTrigger,
+                fn: () =>
+                  exposure.staticTurnEnabled && exposure.staticRelayForwarded
+                    ? {
+                        result: 'success' as const,
+                        message: i18n(
+                          'The password endpoint is publicly reachable.',
+                        ),
+                      }
+                    : {
+                        result: 'failure' as const,
+                        message: exposure.staticTurnEnabled
+                          ? i18n(
+                              'Enable the public IPv4 address on the Relay Ports (Password) interface.',
+                            )
+                          : i18n(
+                              'Enable ${address} on the TURN/STUN (Password) interface.',
+                              {
+                                address: exposure.staticTurnUrl ?? 'turn:',
+                              },
+                            ),
+                      },
               },
-      },
-      requires: [],
-    })
+              requires: [] as const,
+            }
+          : null,
+      )
+  )
 })
