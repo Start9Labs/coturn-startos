@@ -1,3 +1,4 @@
+import { staticAuth } from './fileModels/coturn'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
@@ -5,6 +6,11 @@ import {
   relayInterfaceId,
   relayPortCount,
   relayStartPort,
+  staticListeningPort,
+  staticRelayInterfaceId,
+  staticRelayStartPort,
+  staticTlsPort,
+  staticTurnInterfaceId,
   tlsPort,
   turnHostId,
   turnInterfaceId,
@@ -59,5 +65,56 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     }),
   )
 
-  return [turnReceipt]
+  // The second listener's bindings exist only while it is switched on, so a
+  // server that never turns it on never reserves its 500 relay ports and never
+  // shows an interface it has no use for. A binding a pass does not declare is
+  // disabled rather than deleted, so switching it back on returns the same
+  // external ports, the same domain, and the same per-address choices.
+  if (!(await staticAuth.read((s) => s.enabled).const(effects))) {
+    return [turnReceipt]
+  }
+
+  const staticOrigin = await turnMulti.bindPort(staticListeningPort, {
+    protocol: null,
+    preferredExternalPort: staticListeningPort,
+    secure: { ssl: false },
+    addSsl: {
+      preferredExternalPort: staticTlsPort,
+      alpn: null,
+      addXForwardedHeaders: false,
+      auth: null,
+    },
+  })
+  const staticReceipt = await staticOrigin.export([
+    sdk.createInterface(effects, {
+      name: i18n('TURN/STUN (Password)'),
+      id: staticTurnInterfaceId,
+      description: i18n(
+        'STUN and TURN relay endpoint for apps you set up by hand, using a username and password instead of the shared secret.',
+      ),
+      type: 'api',
+      masked: false,
+      schemeOverride: { ssl: 'turns', noSsl: 'turn' },
+      username: null,
+      path: '',
+      query: {},
+    }),
+  ])
+
+  const staticRelayOrigin = await turnMulti.bindPortRange({
+    internalStartPort: staticRelayStartPort,
+    externalStartPort: staticRelayStartPort,
+    numberOfPorts: relayPortCount,
+  })
+  await staticRelayOrigin.export(
+    sdk.createRangeInterface(effects, {
+      id: staticRelayInterfaceId,
+      name: i18n('Relay Ports (Password)'),
+      description: i18n(
+        'UDP port range for media relayed by the password endpoint',
+      ),
+    }),
+  )
+
+  return [turnReceipt, staticReceipt]
 })

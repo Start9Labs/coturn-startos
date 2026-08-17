@@ -10,6 +10,7 @@ Coturn has no interface of its own — there is nothing to open or log into. To 
 
 - **A shared TURN/STUN server** for real-time audio and video, usable by any StartOS service that supports an external TURN server.
 - **Automatic TLS at the StartOS edge** using your public domain's certificate, so the encrypted `turns:` endpoint presents a publicly trusted certificate that web browsers accept.
+- **An optional second endpoint** with a fixed username and password, for apps you configure by hand rather than StartOS services — see [Apps you configure by hand](#apps-you-configure-by-hand).
 - **No web UI and nothing to log into** — Coturn works in the background for the services that depend on it.
 
 ## Getting set up
@@ -41,9 +42,28 @@ If these ports are not open, calls may fail to connect for people outside your n
 
 ## Using Coturn
 
-Coturn is meant to be used by other StartOS services. A service that supports an external TURN server (such as Jitsi Meet) will depend on Coturn and pick up its address and shared secret automatically once Coturn is installed and running with a public domain — there is nothing to copy by hand.
+Coturn is meant to be used by other StartOS services. A service that supports an external TURN server — Jitsi Meet, Synapse, Nextcloud Talk, Mattermost Calls — will depend on Coturn and pick up its address and shared secret automatically once Coturn is installed and running with a public domain. There is nothing to copy by hand.
+
+### Apps you configure by hand
+
+Those services all authenticate with Coturn's **shared secret**, from which each mints its own short-lived credentials. Plenty of other software cannot do that and asks instead for a plain TURN **username and password** — the SimpleX Chat app's "WebRTC ICE servers" setting, go2rtc's `ice_servers` (which is what Home Assistant streams camera video through), and many others.
+
+Coturn cannot serve both schemes on one endpoint: the mode is chosen per server process, and the shared secret overrides username-and-password authentication. So this package can run a **second** endpoint alongside the first, on its own ports, for exactly those apps.
+
+To use it:
+
+1. Run **Enable Password Access**. Coturn restarts, and two more interfaces appear.
+2. On the new **TURN/STUN (Password)** interface, add and enable your public domain, exactly as in step 1 above.
+3. Enable the public IPv4 address on **Relay Ports (Password)**.
+4. Forward the new ports on your router: **3578** (TCP and UDP), **5449** (TCP), and **42500–42999** (UDP).
+5. Run **Show Username & Password** and enter what it displays into your app.
+
+Leave it off if you have nothing to point at it — while it is off there is no second endpoint and nothing extra to forward.
+
+**This password does not expire.** Anyone who has it can use your server to relay calls until you change it, so only give it to apps you trust. **Rotate Password** replaces it — every app set up with the old one then needs the new one. Relaying to private addresses is refused on both endpoints, so neither can be used to reach your home network.
 
 ## Limitations
 
 - Coturn must be reachable from the public internet, so a public domain and open router ports are required. It cannot work over Tor or your LAN only.
-- Relay capacity is bounded by the 42000–42499 port range (about 500 simultaneous relayed streams), which is plenty for a personal server.
+- Relay capacity is bounded by the 42000–42499 port range (about 500 simultaneous relayed streams), which is plenty for a personal server. The password endpoint has its own range of the same size.
+- The password endpoint has exactly one account, whose username is fixed. You cannot issue a separate credential per app, or revoke one app without rotating for all of them.
