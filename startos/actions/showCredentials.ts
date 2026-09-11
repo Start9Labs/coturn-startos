@@ -42,7 +42,7 @@ export const showCredentials = sdk.Action.withoutInput(
     )
 
     return {
-      version: '1' as const,
+      version: '1',
       title: i18n('Username & Password'),
       message: uris.turn
         ? i18n(
@@ -52,10 +52,10 @@ export const showCredentials = sdk.Action.withoutInput(
             'The password is below, but there is no address to give out yet — add and enable a public domain on the TURN/STUN (Password) interface first.',
           ),
       result: {
-        type: 'group' as const,
+        type: 'group',
         value: [
           {
-            type: 'single' as const,
+            type: 'single',
             name: i18n('Username'),
             description: null,
             value: auth.username,
@@ -64,7 +64,7 @@ export const showCredentials = sdk.Action.withoutInput(
             qr: false,
           },
           {
-            type: 'single' as const,
+            type: 'single',
             name: i18n('Password'),
             description: null,
             value: auth.password,

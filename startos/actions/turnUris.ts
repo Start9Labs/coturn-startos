@@ -29,7 +29,7 @@ export async function turnUris(
 export function uriResults({
   turn,
   turns,
-}: Awaited<ReturnType<typeof turnUris>>) {
+}: Awaited<ReturnType<typeof turnUris>>): T.ActionResultMember[] {
   return [
     { name: i18n('Address'), value: turn },
     { name: i18n('Address (TLS)'), value: turns },
@@ -37,7 +37,7 @@ export function uriResults({
     value
       ? [
           {
-            type: 'single' as const,
+            type: 'single',
             name,
             description: null,
             value,

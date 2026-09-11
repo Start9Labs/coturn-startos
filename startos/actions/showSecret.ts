@@ -15,7 +15,7 @@ export const showSecret = sdk.Action.withoutInput(
     warning: null,
     allowedStatuses: 'any',
     group: i18n('Shared Secret'),
-    visibility: 'enabled' as const,
+    visibility: 'enabled',
   }),
 
   async ({ effects }) => {
@@ -26,7 +26,7 @@ export const showSecret = sdk.Action.withoutInput(
     const uris = await turnUris(effects, listeningPort, turnInterfaceId)
 
     return {
-      version: '1' as const,
+      version: '1',
       title: i18n('Shared Secret'),
       message: uris.turn
         ? i18n(
@@ -36,10 +36,10 @@ export const showSecret = sdk.Action.withoutInput(
             'The secret is below, but there is no address to give out yet — add and enable a public domain on the TURN/STUN interface first.',
           ),
       result: {
-        type: 'group' as const,
+        type: 'group',
         value: [
           {
-            type: 'single' as const,
+            type: 'single',
             name: i18n('Shared Secret'),
             description: null,
             value: secret,

@@ -32,13 +32,13 @@ export const rotatePassword = sdk.Action.withoutInput(
     await staticAuth.merge(effects, { password })
 
     return {
-      version: '1' as const,
+      version: '1',
       title: i18n('Password Rotated'),
       message: i18n(
         'The new password is below. Enter it in every app set up with the old one.',
       ),
       result: {
-        type: 'single' as const,
+        type: 'single',
         name: i18n('Password'),
         description: null,
         value: password,

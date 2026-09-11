@@ -14,7 +14,7 @@ export const rotateSecret = sdk.Action.withoutInput(
     ),
     allowedStatuses: 'any',
     group: i18n('Shared Secret'),
-    visibility: 'enabled' as const,
+    visibility: 'enabled',
   }),
 
   async ({ effects }) => {
@@ -22,13 +22,13 @@ export const rotateSecret = sdk.Action.withoutInput(
     await turnSecret.write(effects, secret)
 
     return {
-      version: '1' as const,
+      version: '1',
       title: i18n('Shared Secret Rotated'),
       message: i18n(
         'The new secret is below. Restart every service on this server that uses Coturn, and enter it in every service on another server.',
       ),
       result: {
-        type: 'single' as const,
+        type: 'single',
         name: i18n('Shared Secret'),
         description: null,
         value: secret,
