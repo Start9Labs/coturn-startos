@@ -82,6 +82,7 @@ const deniedPeerRanges = [
 export function renderTurnserverConf(cfg: {
   realm: string
   externalIps: string[]
+  containerIp: string
   staticAuthSecret: string
 }): string {
   const lines = [
@@ -97,6 +98,7 @@ export function renderTurnserverConf(cfg: {
     'use-auth-secret',
     `static-auth-secret=${cfg.staticAuthSecret}`,
     'no-multicast-peers',
+    `allowed-peer-ip=${cfg.containerIp}`,
     ...deniedPeerRanges.map((range) => `denied-peer-ip=${range}`),
     `pidfile=${dataDir}/turnserver.pid`,
     'log-file=stdout',
@@ -113,6 +115,7 @@ export function renderTurnserverConf(cfg: {
 export function renderStaticTurnserverConf(cfg: {
   realm: string
   externalIps: string[]
+  containerIp: string
   username: string
   password: string
 }): string {
@@ -136,6 +139,7 @@ export function renderStaticTurnserverConf(cfg: {
     'user-quota=12',
     'total-quota=100',
     'no-multicast-peers',
+    `allowed-peer-ip=${cfg.containerIp}`,
     ...deniedPeerRanges.map((range) => `denied-peer-ip=${range}`),
     `pidfile=${dataDir}/turnserver-static.pid`,
     'log-file=stdout',

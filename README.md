@@ -76,7 +76,7 @@ Four models. Three are plain strings and none of them is meant to be edited; the
 | `shared/turn-secret`     | text   | Yes — `FileHelper.string` | Init, only when it is missing           |
 | `static-auth.json`       | JSON   | Yes — `FileHelper.json`   | The Password Access action              |
 
-**`turnserver.conf` is generated in full, not merged.** Every start renders the whole file from three inputs — the realm, the public IPv4 addresses, and the secret — and overwrites what was there. A hand edit does not survive a restart, and there is no configuration action: everything upstream would let you tune is fixed by this package.
+**`turnserver.conf` is generated in full, not merged.** Every start renders the whole file from four inputs — the realm, the public IPv4 addresses, the container's own address, and the secret — and overwrites what was there. A hand edit does not survive a restart, and there is no configuration action: everything upstream would let you tune is fixed by this package.
 
 What it fixes, and why each differs from simply leaving coturn to its defaults:
 
@@ -88,13 +88,16 @@ What it fixes, and why each differs from simply leaving coturn to its defaults:
 | `no-tls`                                | set                                         | StartOS terminates TLS at the edge — see [Interfaces](#network-access-and-interfaces) |
 | `min-port`, `max-port`                  | The published relay range                   | Must match the range StartOS forwards                                                 |
 | `no-multicast-peers`, `denied-peer-ip`  | Multicast plus every special-use IPv4 block | Prevents a client from pivoting into the LAN or the container network                 |
+| `allowed-peer-ip`                       | The container's own IPv4                    | Derived; without it the denied ranges break relay-to-relay — see below                |
 | `fingerprint`                           | set                                         | Required by WebRTC clients                                                            |
 
 The denied-peer list is the security-relevant one: anyone holding valid ephemeral credentials can ask a TURN server to relay to an arbitrary address, so private and special-use ranges are refused explicitly. Recent coturn already refuses loopback, link-local, and IPv6 unique-local addresses on its own; the RFC1918 and other special-use IPv4 blocks are not covered by that default and are listed here.
 
+**The allowed entry keeps that list from blocking the server from itself.** When two clients on this server relay to each other, each names the other's relay candidate as its peer, and coturn maps that public address back to its own container address before checking it against the denied ranges — which include the container network. Allowing that one host restores relay-to-relay while the LAN and the other containers stay denied. IPv4 only: coturn refuses unique-local IPv6 peers ahead of the allowed list, so relay-to-relay over IPv6 on one server does not work.
+
 **`shared/turn-secret`** is generated once, and only when absent. Seeding on absence rather than only at install means a lost secret is regenerated rather than leaving the service permanently unable to authenticate anyone; on a restore the secret arrives from the backup and is left alone.
 
-**`turnserver-static.conf`** is generated the same way and from the same realm and public IPs, differing only in what it authenticates against and where it listens:
+**`turnserver-static.conf`** is generated the same way and from the same realm, public IPs and container address — it carries the same allowed and denied peer lists, for the same reasons — differing only in what it authenticates against and where it listens:
 
 | Setting                     | Value                                    | Reason                                                                       |
 | --------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
@@ -200,7 +203,7 @@ The `main` volume is copied wholesale — `sdk.Backups.ofVolumes('main')`. No du
 1. **`turnserver.conf` is not configurable.** It is regenerated in full on every start; there is no action and no hand edit that survives.
 2. **Coturn serves no TLS of its own.** TLS is terminated at the edge by StartOS, so certificate management is the platform's, not coturn's.
 3. **A public domain is required** before the service can do anything.
-4. **Relaying to private and special-use address ranges is refused**, so a TURN client cannot reach the LAN or other containers through it.
+4. **Relaying to private and special-use address ranges is refused**, so a TURN client cannot reach the LAN or other containers through it. The single exception is coturn's own container address, which has to be allowed for two clients on this server to relay to each other at all.
 5. **The relay range is fixed** at 500 UDP ports from a fixed start, chosen to sit clear of the ephemeral port pool.
 6. **The two authentication schemes cannot be combined on one endpoint.** coturn's mode is per-process, so the fixed-credential listener is a second process on its own ports rather than an option on the first. A client speaks to one or the other.
 7. **The password does not expire.** Anything holding it can relay until it is rotated, where the shared secret's credentials time out on their own. The denied-peer list applies to both endpoints, so neither can reach the LAN, and the password endpoint caps concurrent relays per account and in total.

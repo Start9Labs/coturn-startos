@@ -62,6 +62,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .const()
 
+  const containerIp = await sdk.getContainerIp(effects).const()
+
   const coturnSub = sdk.SubContainer.of(
     effects,
     { imageId: 'coturn' },
@@ -93,6 +95,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const conf = renderTurnserverConf({
     realm: net.realm,
     externalIps: net.externalIps,
+    containerIp,
     staticAuthSecret,
   })
   await turnserverConf.write(effects, conf, { allowWriteAfterConst: true })
@@ -103,6 +106,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
       renderStaticTurnserverConf({
         realm: net.realm,
         externalIps: net.externalIps,
+        containerIp,
         username: staticAccount.username,
         password: staticAccount.password,
       }),
