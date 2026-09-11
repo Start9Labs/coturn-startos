@@ -1,43 +1,23 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '4.18.0:0',
+  version: '4.18.0:1',
   releaseNotes: {
-    en_US: `Updated Coturn to 4.18.0.
+    en_US: `When both people on a call relayed through this server — the fallback two people behind restrictive routers depend on — the relay never came up, and the call fell back to a worse path or cut out. Coturn was refusing to relay to its own address, which the block on private address ranges covered.
 
-- Networking: corrected IPv6 relay address advertisement and external IP handling for each address family.
-- Reliability and security: fixed worker send-buffer races and relay-port cleanup, and strengthened validation of authentication fields.
-- Standards: improved handling of duplicate TURN attributes, attributes after MESSAGE-INTEGRITY, and ChannelBind requests without an allocation.
+That one address is now allowed explicitly. Your LAN and your other services stay blocked, as before.`,
+    es_ES: `Cuando las dos personas de una llamada retransmitían a través de este servidor —la alternativa de la que dependen dos personas tras routers restrictivos—, la retransmisión nunca llegaba a establecerse y la llamada pasaba a una ruta peor o se cortaba. Coturn se negaba a retransmitir hacia su propia dirección, incluida en el bloqueo de rangos de direcciones privadas.
 
-Full release notes: https://github.com/coturn/coturn/releases/tag/4.18.0`,
-    es_ES: `Coturn actualizado a 4.18.0.
+Esa única dirección ahora se permite de forma explícita. Tu red local y tus demás servicios siguen bloqueados, como antes.`,
+    de_DE: `Wenn beide Teilnehmer eines Anrufs über diesen Server weitergeleitet wurden — der Rückfallweg, auf den zwei Personen hinter restriktiven Routern angewiesen sind —, kam die Weiterleitung nie zustande, und der Anruf wich auf einen schlechteren Pfad aus oder brach ab. Coturn verweigerte die Weiterleitung an die eigene Adresse, die von der Sperre privater Adressbereiche erfasst war.
 
-- Redes: se corrigió el anuncio de direcciones de retransmisión IPv6 y el manejo de IP externas para cada familia de direcciones.
-- Fiabilidad y seguridad: se corrigieron condiciones de carrera en el búfer de envío de los procesos de trabajo y la liberación de puertos de retransmisión, y se reforzó la validación de los campos de autenticación.
-- Estándares: se mejoró el manejo de atributos TURN duplicados, atributos posteriores a MESSAGE-INTEGRITY y solicitudes ChannelBind sin asignación.
+Diese eine Adresse ist jetzt ausdrücklich erlaubt. Ihr lokales Netzwerk und Ihre übrigen Dienste bleiben wie bisher gesperrt.`,
+    pl_PL: `Gdy obie osoby w połączeniu korzystały z przekaźnika na tym serwerze — rezerwowej drogi, od której zależą dwie osoby za restrykcyjnymi routerami — przekaźnik nigdy nie dochodził do skutku, a połączenie przechodziło na gorszą trasę albo się urywało. Coturn odmawiał przekazywania na własny adres, objęty blokadą prywatnych zakresów adresów.
 
-Notas de la versión completas: https://github.com/coturn/coturn/releases/tag/4.18.0`,
-    de_DE: `Coturn auf 4.18.0 aktualisiert.
+Ten jeden adres jest teraz wyraźnie dozwolony. Twoja sieć lokalna i pozostałe usługi pozostają zablokowane, tak jak dotąd.`,
+    fr_FR: `Lorsque les deux participants d'un appel passaient par le relais de ce serveur — la solution de repli dont dépendent deux personnes derrière des routeurs restrictifs —, le relais ne s'établissait jamais et l'appel basculait vers un chemin de moins bonne qualité ou se coupait. Coturn refusait de relayer vers sa propre adresse, couverte par le blocage des plages d'adresses privées.
 
-- Netzwerk: Die Bekanntgabe von IPv6-Relay-Adressen und die Behandlung externer IP-Adressen für jede Adressfamilie wurden korrigiert.
-- Zuverlässigkeit und Sicherheit: Race Conditions in den Sendepuffern der Worker und die Freigabe von Relay-Ports wurden behoben sowie die Validierung von Authentifizierungsfeldern verschärft.
-- Standards: Die Behandlung doppelter TURN-Attribute, von Attributen nach MESSAGE-INTEGRITY und von ChannelBind-Anfragen ohne Zuteilung wurde verbessert.
-
-Vollständige Versionshinweise: https://github.com/coturn/coturn/releases/tag/4.18.0`,
-    pl_PL: `Zaktualizowano Coturn do 4.18.0.
-
-- Sieć: poprawiono ogłaszanie adresów przekaźników IPv6 oraz obsługę zewnętrznych adresów IP dla każdej rodziny adresów.
-- Niezawodność i bezpieczeństwo: naprawiono wyścigi w buforach wysyłania procesów roboczych i zwalnianie portów przekaźnika oraz wzmocniono walidację pól uwierzytelniania.
-- Standardy: ulepszono obsługę zduplikowanych atrybutów TURN, atrybutów po MESSAGE-INTEGRITY oraz żądań ChannelBind bez przydziału.
-
-Pełne informacje o wydaniu: https://github.com/coturn/coturn/releases/tag/4.18.0`,
-    fr_FR: `Coturn mis à jour vers 4.18.0.
-
-- Réseau : correction de l'annonce des adresses de relais IPv6 et de la gestion des adresses IP externes pour chaque famille d'adresses.
-- Fiabilité et sécurité : correction de conditions de concurrence dans les tampons d'envoi des workers et de la libération des ports de relais, et renforcement de la validation des champs d'authentification.
-- Normes : amélioration de la gestion des attributs TURN dupliqués, des attributs après MESSAGE-INTEGRITY et des requêtes ChannelBind sans allocation.
-
-Notes de version complètes : https://github.com/coturn/coturn/releases/tag/4.18.0`,
+Cette seule adresse est désormais autorisée explicitement. Votre réseau local et vos autres services restent bloqués, comme auparavant.`,
   },
   migrations: {
     up: async ({ effects }) => {},
