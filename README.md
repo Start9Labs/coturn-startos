@@ -73,7 +73,7 @@ Four models. Three are plain strings and none of them is meant to be edited; the
 | ------------------------ | ------ | ------------------------- | --------------------------------------- |
 | `turnserver.conf`        | text   | Yes — `FileHelper.string` | `main`, on every start                  |
 | `turnserver-static.conf` | text   | Yes — `FileHelper.string` | `main`, while the second listener is on |
-| `shared/turn-secret`     | text   | Yes — `FileHelper.string` | Init, only when it is missing           |
+| `shared/turn-secret`     | text   | Yes — `FileHelper.string` | Init when missing; Rotate Shared Secret |
 | `static-auth.json`       | JSON   | Yes — `FileHelper.json`   | The Password Access action              |
 
 **`turnserver.conf` is generated in full, not merged.** Every start renders the whole file from four inputs — the realm, the public IPv4 addresses, the container's own address, and the secret — and overwrites what was there. A hand edit does not survive a restart, and there is no configuration action: everything upstream would let you tune is fixed by this package.
@@ -95,7 +95,7 @@ The denied-peer list is the security-relevant one: anyone holding valid ephemera
 
 **The allowed entry keeps that list from blocking the server from itself.** When two clients on this server relay to each other, each names the other's relay candidate as its peer, and coturn maps that public address back to its own container address before checking it against the denied ranges — which include the container network. Allowing that one host restores relay-to-relay while the LAN and the other containers stay denied. IPv4 only: coturn refuses unique-local IPv6 peers ahead of the allowed list, so relay-to-relay over IPv6 on one server does not work.
 
-**`shared/turn-secret`** is generated once, and only when absent. Seeding on absence rather than only at install means a lost secret is regenerated rather than leaving the service permanently unable to authenticate anyone; on a restore the secret arrives from the backup and is left alone.
+**`shared/turn-secret`** is generated once, and only when absent. Seeding on absence rather than only at install means a lost secret is regenerated rather than leaving the service permanently unable to authenticate anyone; on a restore the secret arrives from the backup and is left alone. Otherwise it changes only when **Rotate Shared Secret** replaces it.
 
 **`turnserver-static.conf`** is generated the same way and from the same realm, public IPs and container address — it carries the same allowed and denied peer lists, for the same reasons — differing only in what it authenticates against and where it listens:
 
@@ -147,9 +147,21 @@ Adding the domain is enough to move between them — the package notices and res
 
 ## Actions
 
-Three, all concerning the second listener. Everything the first one needs is derived from the addresses StartOS has published, so there is nothing to configure about it.
+Five, in two groups. Nothing about either listener is configured by action — its config is derived from the addresses StartOS has published — so every action here concerns a credential.
 
-All three sit in a **Password Access** group, and the two below it are disabled — with the reason shown — until the endpoint is switched on.
+**Shared Secret** holds the two for the first listener's secret. **Password Access** holds the three for the second listener; the two below its switch are disabled — with the reason shown — until the endpoint is on.
+
+### Show Shared Secret
+
+Displays the shared secret with the endpoint's `turn:` and `turns:` URIs. The addresses are absent until a public domain is enabled on **TURN/STUN**; the secret is still shown, with a note saying so.
+
+**It exists for consumers on other servers.** A dependent on this server mounts `shared/` and reads the secret itself; a dependency mount cannot cross servers, so for a service on another server — another StartOS server's Nextcloud, or a Jitsi or Synapse run elsewhere — this is the only way to obtain it.
+
+### Rotate Shared Secret
+
+Writes a new secret and shows it. `main` reads `shared/turn-secret` with `.const()`, so the write alone regenerates both configs and restarts turnserver — which drops every call being relayed at the time. The warning says so.
+
+**Dependents are not notified, and nothing here can notify them.** A dependent on this server reads the secret off the mounted volume when it starts, so it keeps presenting the old one until it is restarted; a service on another server keeps it until the new one is entered. The warning and the result both tell the operator to do each.
 
 ### Enable Password Access / Disable Password Access
 
@@ -241,6 +253,8 @@ interfaces:
   turn-static: { type: api, port: 3578 } # 5449 for turns:; only while enabled
   turn-static-relay: { type: api, port: 42500 } # UDP range, 500 ports; only while enabled
 actions:
+  - show-shared-secret # group "Shared Secret"; for consumers on another server
+  - rotate-shared-secret # same group; restarts turnserver, dependents not notified
   - password-access # "Enable/Disable Password Access"; group "Password Access"
   - show-credentials # same group; disabled until password access is on
   - rotate-password # same group; disabled until password access is on

@@ -82,7 +82,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
       ready: {
         display: i18n('TURN Server'),
         fn: async () => ({
-          result: 'failure' as const,
+          result: 'failure',
           message: i18n(
             'Add a public domain to either the TURN/STUN or Relay Ports interface.',
           ),
@@ -225,11 +225,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
           fn: () =>
             exposure.turnEnabled
               ? {
-                  result: 'success' as const,
+                  result: 'success',
                   message: i18n('Plain TURN/STUN is publicly reachable.'),
                 }
               : {
-                  result: 'failure' as const,
+                  result: 'failure',
                   message: i18n(
                     'Enable ${address} on the TURN/STUN interface.',
                     {
@@ -247,11 +247,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
           fn: () =>
             exposure.turnsEnabled
               ? {
-                  result: 'success' as const,
+                  result: 'success',
                   message: i18n('TURN over TLS is publicly reachable.'),
                 }
               : {
-                  result: 'failure' as const,
+                  result: 'failure',
                   message: i18n(
                     'Enable ${address} on the TURN/STUN interface.',
                     {
@@ -269,11 +269,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
           fn: () =>
             exposure.relayForwarded
               ? {
-                  result: 'success' as const,
+                  result: 'success',
                   message: i18n('The relay port range is publicly reachable.'),
                 }
               : {
-                  result: 'failure' as const,
+                  result: 'failure',
                   message: i18n(
                     'Enable the public IPv4 address on the Relay Ports interface.',
                   ),
@@ -304,7 +304,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
                     },
                   ),
               },
-              requires: ['chown'] as const,
+              requires: ['chown'],
             }
           : null,
       )
@@ -320,13 +320,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
                 fn: () =>
                   exposure.staticTurnEnabled && exposure.staticRelayForwarded
                     ? {
-                        result: 'success' as const,
+                        result: 'success',
                         message: i18n(
                           'The password endpoint is publicly reachable.',
                         ),
                       }
                     : {
-                        result: 'failure' as const,
+                        result: 'failure',
                         message: exposure.staticTurnEnabled
                           ? i18n(
                               'Enable the public IPv4 address on the Relay Ports (Password) interface.',
@@ -339,7 +339,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
                             ),
                       },
               },
-              requires: [] as const,
+              requires: [],
             }
           : null,
       )

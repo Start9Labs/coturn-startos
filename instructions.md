@@ -42,11 +42,22 @@ If these ports are not open, calls may fail to connect for people outside your n
 
 ## Using Coturn
 
-Coturn is meant to be used by other StartOS services. A service that supports an external TURN server — Jitsi Meet, Synapse, Nextcloud Talk, Mattermost Calls — will depend on Coturn and pick up its address and shared secret automatically once Coturn is installed and running with a public domain. There is nothing to copy by hand.
+Coturn is meant to be used by other StartOS services. A service **on this server** that supports an external TURN server — Jitsi Meet, Synapse, Nextcloud Talk, Mattermost Calls — will depend on Coturn and pick up its address and shared secret automatically once Coturn is installed and running with a public domain. There is nothing to copy by hand.
+
+### Services on another server
+
+That automatic hand-off only works between services on the same server. To point a service on a different server at this Coturn — another StartOS server's Nextcloud, or a Jitsi or Synapse you run elsewhere — enter the details yourself:
+
+1. Run **Show Shared Secret**.
+2. In the other service's TURN settings, enter the **Address** it shows as the TURN server, and the **Shared Secret** as the secret. Add the **Address (TLS)** too if the service accepts a second, `turns:` entry. Some services — Nextcloud Talk among them — ask for the scheme separately: choose `turn` (or `turns`) there, and enter just the part after `turn:` as the server.
+
+The shared secret is for services like these, which mint their own short-lived credentials from it. Never give it to an end-user app — for those, see below.
+
+**Rotate Shared Secret** replaces it. Coturn restarts, dropping any call it is relaying at the time. Services on this server keep using the old secret until you restart them; services on other servers stop relaying until you enter the new one.
 
 ### Apps you configure by hand
 
-Those services all authenticate with Coturn's **shared secret**, from which each mints its own short-lived credentials. Plenty of other software cannot do that and asks instead for a plain TURN **username and password** — the SimpleX Chat app's "WebRTC ICE servers" setting, go2rtc's `ice_servers` (which is what Home Assistant streams camera video through), and many others.
+Services like those above authenticate with Coturn's **shared secret**, from which each mints its own short-lived credentials. Plenty of other software cannot do that and asks instead for a plain TURN **username and password** — the SimpleX Chat app's "WebRTC ICE servers" setting, go2rtc's `ice_servers` (which is what Home Assistant streams camera video through), and many others.
 
 Coturn cannot serve both schemes on one endpoint: the mode is chosen per server process, and the shared secret overrides username-and-password authentication. So this package can run a **second** endpoint alongside the first, on its own ports, for exactly those apps.
 

@@ -54,6 +54,20 @@ const dict = {
   'Every app set up with the old password stops relaying until you enter the new one.': 41,
   'Password Rotated': 42,
   'The new password is below. Enter it in every app set up with the old one.': 43,
+
+  // actions/showSecret.ts + actions/rotateSecret.ts — the shared-secret
+  // endpoint's credential ('Address' and 'Address (TLS)' come from turnUris.ts)
+  'Show Shared Secret': 44,
+  'Display the shared secret and addresses for connecting a service running on another server.': 45,
+  'Shared Secret': 46,
+  'The shared secret has not been generated yet.': 47,
+  'Enter these in the service you are connecting. It derives its own short-lived credentials from the secret, so never give the secret itself to an end-user app.': 48,
+  'The secret is below, but there is no address to give out yet — add and enable a public domain on the TURN/STUN interface first.': 49,
+  'Rotate Shared Secret': 50,
+  'Generate a new shared secret.': 51,
+  'Coturn restarts, dropping any call it is relaying. Services on this server keep the old secret until you restart them; services on other servers stop relaying until you enter the new one.': 52,
+  'Shared Secret Rotated': 53,
+  'The new secret is below. Restart every service on this server that uses Coturn, and enter it in every service on another server.': 54,
 } as const
 
 /**
