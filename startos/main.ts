@@ -62,12 +62,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .const()
 
-  // The address coturn binds its relay to, and the one `external-ip` maps back
-  // to when a client asks to relay to another client on this same server — so
-  // it has to be named in the allowed list to survive the denied ranges. See
-  // `allowedPeerLines`. Static for the lifetime of the container, so the OS
-  // registers no callback for a service reading its own: `.const()` fetches it
-  // once and never re-runs `main`.
   const containerIp = await sdk.getContainerIp(effects).const()
 
   const coturnSub = sdk.SubContainer.of(

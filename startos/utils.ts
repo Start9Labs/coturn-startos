@@ -79,41 +79,10 @@ const deniedPeerRanges = [
   '240.0.0.0-255.255.255.255',
 ]
 
-/**
- * The one exception to the denied ranges above: coturn's own container address.
- *
- * `external-ip` registers a two-way mapping, and coturn applies the public →
- * private direction to EVERY address attribute it decodes — including the
- * XOR-PEER-ADDRESS of a CreatePermission. So when two clients on this server
- * exchange relay candidates, the peer address each sends is the public IP,
- * which coturn rewrites to the container address BEFORE checking the denied
- * ranges. That address is inside `10.0.0.0-10.255.255.255`, so the permission
- * is refused and the relay↔relay candidate pair — the pair two clients behind
- * symmetric NAT depend on — never comes up.
- *
- * `good_peer_addr` consults the allowed list first and returns on a match, so
- * one host entry restores it. It permits relaying to coturn's own address and
- * nothing else: the LAN and the other containers stay denied.
- *
- * IPv4 only. Coturn denies unique-local peers ahead of the allowed list, so an
- * IPv6 allocation's relay candidate (a `fd00::/8` container address) cannot be
- * rescued this way.
- */
-function allowedPeerLines(containerIp: string | null): string[] {
-  // Coturn aborts at startup on a value it cannot parse, so anything that is
-  // not a dotted quad in range is dropped rather than written out — leaving
-  // relay-to-relay broken, which is survivable, rather than the service dead.
-  const octets = containerIp?.split('.') ?? []
-  const usable =
-    octets.length === 4 &&
-    octets.every((o) => /^(0|[1-9]\d{0,2})$/.test(o) && Number(o) <= 255)
-  return usable ? [`allowed-peer-ip=${containerIp}`] : []
-}
-
 export function renderTurnserverConf(cfg: {
   realm: string
   externalIps: string[]
-  containerIp: string | null
+  containerIp: string
   staticAuthSecret: string
 }): string {
   const lines = [
@@ -129,7 +98,7 @@ export function renderTurnserverConf(cfg: {
     'use-auth-secret',
     `static-auth-secret=${cfg.staticAuthSecret}`,
     'no-multicast-peers',
-    ...allowedPeerLines(cfg.containerIp),
+    `allowed-peer-ip=${cfg.containerIp}`,
     ...deniedPeerRanges.map((range) => `denied-peer-ip=${range}`),
     `pidfile=${dataDir}/turnserver.pid`,
     'log-file=stdout',
@@ -146,7 +115,7 @@ export function renderTurnserverConf(cfg: {
 export function renderStaticTurnserverConf(cfg: {
   realm: string
   externalIps: string[]
-  containerIp: string | null
+  containerIp: string
   username: string
   password: string
 }): string {
@@ -170,7 +139,7 @@ export function renderStaticTurnserverConf(cfg: {
     'user-quota=12',
     'total-quota=100',
     'no-multicast-peers',
-    ...allowedPeerLines(cfg.containerIp),
+    `allowed-peer-ip=${cfg.containerIp}`,
     ...deniedPeerRanges.map((range) => `denied-peer-ip=${range}`),
     `pidfile=${dataDir}/turnserver-static.pid`,
     'log-file=stdout',
