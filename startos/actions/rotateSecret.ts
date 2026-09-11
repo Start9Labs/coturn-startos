@@ -3,17 +3,6 @@ import { i18n } from '../i18n'
 import { sdk } from '../sdk'
 import { generateSecret } from '../utils'
 
-/**
- * Replaces the secret in place. `main` reads it with `.const()`, so the write
- * alone regenerates both configs and restarts turnserver — and drops every
- * call being relayed at the time.
- *
- * Dependents are NOT notified. A service on this server reads the secret off
- * the mounted volume once, when it starts, so it keeps presenting the old one
- * until it is restarted; a service on another server keeps it until someone
- * enters the new one. The warning says both, because nothing here can do
- * either on the operator's behalf.
- */
 export const rotateSecret = sdk.Action.withoutInput(
   'rotate-shared-secret',
 

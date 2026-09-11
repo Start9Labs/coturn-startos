@@ -155,9 +155,7 @@ Five, in two groups. Nothing about either listener is configured by action — i
 
 Displays the shared secret with the endpoint's `turn:` and `turns:` URIs. The addresses are absent until a public domain is enabled on **TURN/STUN**; the secret is still shown, with a note saying so.
 
-**It exists for consumers on other servers.** A dependent on this server mounts `shared/` and reads the secret itself, but `mountDependency` is local-only, so for a service on another server — another StartOS server's Nextcloud, or a Jitsi or Synapse run elsewhere — this is the only way to obtain it. Before it, the secret could be read only by attaching to the subcontainer.
-
-The URIs are built by hand in the RFC 7065 `turn:host:port` form rather than with `addressInfo.toUrl`, whose `scheme://host:port` form TURN clients reject — the same reason as **Show Username & Password**.
+**It exists for consumers on other servers.** A dependent on this server mounts `shared/` and reads the secret itself; a dependency mount cannot cross servers, so for a service on another server — another StartOS server's Nextcloud, or a Jitsi or Synapse run elsewhere — this is the only way to obtain it.
 
 ### Rotate Shared Secret
 

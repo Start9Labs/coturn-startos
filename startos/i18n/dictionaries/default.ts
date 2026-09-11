@@ -56,7 +56,7 @@ const dict = {
   'The new password is below. Enter it in every app set up with the old one.': 43,
 
   // actions/showSecret.ts + actions/rotateSecret.ts — the shared-secret
-  // endpoint's credential ('Address' and 'Address (TLS)' reused from above)
+  // endpoint's credential ('Address' and 'Address (TLS)' come from turnUris.ts)
   'Show Shared Secret': 44,
   'Display the shared secret and addresses for connecting a service running on another server.': 45,
   'Shared Secret': 46,
