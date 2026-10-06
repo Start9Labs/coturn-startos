@@ -170,7 +170,7 @@ One button, whose name says what pressing it will do; it reads the current state
 - **What it changes:** `static-auth.json`; through it the password endpoint's interfaces, its config, and its daemon. Generates the password on the first enable.
 - **Cost:** seconds, then a restart. Enabling also claims a second external port pair and a second 500-port relay range, both of which need forwarding.
 - **Repeat safety:** the password is not regenerated on a re-enable, so apps already set up with it keep working.
-- **Carries a warning only when it will enable**, since switching the endpoint off creates no risk.
+- **Carries a warning either way.** Enabling warns that the password does not expire; disabling warns that apps set up with it stop relaying until it is turned back on, and that the password is kept.
 
 ### Show Username & Password
 

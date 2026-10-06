@@ -57,6 +57,7 @@ export default {
     52: 'Coturn se reinicia y corta cualquier llamada que esté retransmitiendo. Los servicios de este servidor conservan el secreto anterior hasta que los reinicies; los de otros servidores dejarán de retransmitir hasta que introduzcas el nuevo.',
     53: 'Secreto compartido rotado',
     54: 'El nuevo secreto está abajo. Reinicia todos los servicios de este servidor que usen Coturn e introdúcelo en todos los servicios de otros servidores.',
+    55: 'Las aplicaciones configuradas con el usuario y la contraseña dejarán de retransmitir hasta que vuelvas a activar el acceso con contraseña. La contraseña se conserva.',
   },
   de_DE: {
     0: 'Coturn wird gestartet!',
@@ -114,6 +115,7 @@ export default {
     52: 'Coturn startet neu und bricht jeden Anruf ab, den es gerade weiterleitet. Dienste auf diesem Server behalten das alte Geheimnis, bis Sie sie neu starten; Dienste auf anderen Servern leiten nicht mehr weiter, bis Sie das neue eintragen.',
     53: 'Gemeinsames Geheimnis rotiert',
     54: 'Das neue Geheimnis steht unten. Starten Sie jeden Dienst auf diesem Server neu, der Coturn nutzt, und tragen Sie es in jeden Dienst auf einem anderen Server ein.',
+    55: 'Anwendungen, die mit dem Benutzernamen und Passwort eingerichtet sind, leiten nicht mehr weiter, bis Sie den Passwortzugang wieder einschalten. Das Passwort bleibt erhalten.',
   },
   pl_PL: {
     0: 'Uruchamianie Coturn!',
@@ -171,6 +173,7 @@ export default {
     52: 'Coturn uruchomi się ponownie, przerywając każde połączenie, które właśnie przekazuje. Usługi na tym serwerze zachowają stary sekret, dopóki ich nie uruchomisz ponownie; usługi na innych serwerach przestaną przekazywać ruch, dopóki nie wpiszesz nowego.',
     53: 'Współdzielony sekret zmieniony',
     54: 'Nowy sekret jest poniżej. Uruchom ponownie każdą usługę na tym serwerze, która korzysta z Coturn, i wpisz go w każdej usłudze na innym serwerze.',
+    55: 'Aplikacje skonfigurowane z nazwą użytkownika i hasłem przestaną przekazywać ruch, dopóki ponownie nie włączysz dostępu hasłem. Hasło zostaje zachowane.',
   },
   fr_FR: {
     0: 'Démarrage de Coturn !',
@@ -228,5 +231,6 @@ export default {
     52: 'Coturn redémarre et coupe tout appel qu’il est en train de relayer. Les services de ce serveur gardent l’ancien secret jusqu’à ce que vous les redémarriez ; ceux d’autres serveurs cessent de relayer jusqu’à ce que vous saisissiez le nouveau.',
     53: 'Secret partagé renouvelé',
     54: 'Le nouveau secret est ci-dessous. Redémarrez chaque service de ce serveur qui utilise Coturn, et saisissez-le dans chaque service d’un autre serveur.',
+    55: 'Les applications configurées avec l’identifiant et le mot de passe cessent de relayer jusqu’à ce que vous réactiviez l’accès par mot de passe. Le mot de passe est conservé.',
   },
 } satisfies Record<string, LangDict>

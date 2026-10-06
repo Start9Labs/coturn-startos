@@ -18,16 +18,23 @@ Freshly scaffolded? Work the
 guide page, not a file in this repo — read it, don't copy it in.
 
 Keep `README.md` (technical reference for an AI support or administering agent) and
-`instructions.md` (end-user docs) in sync with your changes.
+`instructions.md` (end-user docs) in sync with your changes. This file restates neither:
+whoever changes the package has both, so it carries only what they don't — repo mechanics,
+a change that looks right and is not, where the next thing gets added, a naming trap, a
+build or test invocation particular to this repo.
 
-**Bugs and feature requests are GitHub issues on this repo** — file them as you find them.
+**Fix a defect you spot rather than reporting it** — you have the package open and the
+context to be sure. File **a GitHub issue on this repo** only when the call isn't yours to
+make: you can't pin the cause down, two defensible fixes exist, or it's too large to ride on
+the work in hand. An open issue is a report, not a queue — implement one when you're asked
+to or when it's labelled `Approved`, then close it with `Closes #<n>`.
+
 Don't record work in the repo instead: no `TODO.md`, no `NOTES.md`, no `PLAN.md`. What you
 verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
 - **Don't `retire()` the static listener's bindings.** Leaving them undeclared while it is off disables rather than deletes them, which is what keeps the user's domain and per-address choices across a disable/re-enable.
-- **Action metadata that depends on state must read it with `.const(effects)`, never `.once()`.** Metadata is exported by an init script, so a non-reactive read pins it to whatever the state was at install; `tsc` cannot catch this.
 - **An input goes in `main`'s `.const()` only if the rendered config depends on it.** Anything the health checks alone read is watched with `.onChange` into a local, so a toggle does not restart `turnserver`.
 - **Never render a TURN address with `addressInfo.toUrl`.** It produces `scheme://host:port`; a TURN URI has no authority component (RFC 7065) and must be `turn:host:port`, so build it from the hostname and port. The health-check messages use `toUrl` deliberately — they name an address for the user to find in the StartOS UI, which renders that form.
 - **Test with coturn's own client from inside the container:** `start-cli package attach coturn -n coturn-sub -- sh -c 'S=$(grep -m1 "^static-auth-secret=" /var/lib/coturn/turnserver.conf | cut -d= -f2); turnutils_uclient -t -c -y -n 1 -p 3478 -W "$S" 127.0.0.1'`. Under `-y` the channel bind must succeed; `channel bind: error 403` means `denied-peer-ip` is refusing the container's own address, so `allowed-peer-ip` has gone missing. `Cannot complete Allocation` is a failed login. If you run the client from the image with `docker run` instead, pass `--entrypoint turnutils_uclient` — the upstream entrypoint evals its arguments and the client ends up dialing localhost.

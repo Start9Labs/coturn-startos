@@ -68,6 +68,7 @@ const dict = {
   'Coturn restarts, dropping any call it is relaying. Services on this server keep the old secret until you restart them; services on other servers stop relaying until you enter the new one.': 52,
   'Shared Secret Rotated': 53,
   'The new secret is below. Restart every service on this server that uses Coturn, and enter it in every service on another server.': 54,
+  'Apps set up with the username and password stop relaying until you turn Password Access back on. The password is kept.': 55,
 } as const
 
 /**

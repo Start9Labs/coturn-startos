@@ -23,9 +23,10 @@ export const passwordAccess = sdk.Action.withoutInput(
         : i18n(
             'Add a second endpoint that apps sign in to with a username and password, for apps that cannot use the shared secret the StartOS services use.',
           ),
-      // Only when the click will turn it on — switching it off creates no risk.
       warning: enabled
-        ? null
+        ? i18n(
+            'Apps set up with the username and password stop relaying until you turn Password Access back on. The password is kept.',
+          )
         : i18n(
             'This password does not expire. Anyone who has it can use your server to relay calls until you change it, so only give it to apps you trust.',
           ),
