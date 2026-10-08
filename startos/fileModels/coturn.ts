@@ -24,7 +24,7 @@ export const turnSecret = FileHelper.string({
 // dependent consumes this credential — it is copied into a client by hand.
 export const staticAuth = FileHelper.json(
   { base: sdk.volumes.main, subpath: './static-auth.json' },
-  z.object({
+  z.looseObject({
     enabled: z.boolean().catch(false).default(false),
     username: z.string().catch('').default(''),
     password: z.string().catch('').default(''),
