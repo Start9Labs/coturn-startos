@@ -44,6 +44,7 @@ export function uriResults({
             masked: false,
             copyable: true,
             qr: false,
+            launchable: false,
           },
         ]
       : [],

@@ -46,6 +46,7 @@ export const showSecret = sdk.Action.withoutInput(
             masked: true,
             copyable: true,
             qr: false,
+            launchable: false,
           },
           ...uriResults(uris),
         ],
