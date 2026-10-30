@@ -226,7 +226,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
             exposure.turnEnabled
               ? {
                   result: 'success',
-                  message: i18n('Plain TURN/STUN is publicly reachable.'),
+                  message: i18n(
+                    'Plain TURN/STUN is published on a public address.',
+                  ),
                 }
               : {
                   result: 'failure',
@@ -248,7 +250,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
             exposure.turnsEnabled
               ? {
                   result: 'success',
-                  message: i18n('TURN over TLS is publicly reachable.'),
+                  message: i18n(
+                    'TURN over TLS is published on a public address.',
+                  ),
                 }
               : {
                   result: 'failure',
@@ -270,7 +274,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
             exposure.relayForwarded
               ? {
                   result: 'success',
-                  message: i18n('The relay port range is publicly reachable.'),
+                  message: i18n(
+                    'The relay port range is published on a public address.',
+                  ),
                 }
               : {
                   result: 'failure',
@@ -322,7 +328,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
                     ? {
                         result: 'success',
                         message: i18n(
-                          'The password endpoint is publicly reachable.',
+                          'The password endpoint is published on a public address.',
                         ),
                       }
                     : {

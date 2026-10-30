@@ -186,7 +186,7 @@ None. This package raises no tasks, so the service is never held on a prompt and
 
 ## Health Checks
 
-One check always, and three more once a realm exists. All four are about reachability rather than process health, because a TURN server that is running but unreachable is useless in a way nothing else would report.
+One check always, and three more once a realm exists. All four are about exposure rather than process health, because a TURN server that is running but unpublished is useless in a way nothing else would report. They read what StartOS has published and forwarded, and send no traffic: a port the gateway forwards to another server, such as one already claimed on a shared StartTunnel, still shows green.
 
 | Check                 | Displayed                | Reports                                                                           | Present                   |
 | --------------------- | ------------------------ | --------------------------------------------------------------------------------- | ------------------------- |
