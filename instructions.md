@@ -19,7 +19,7 @@ Coturn will not relay anything until it has a public domain attached and the rig
 
 ### 1. Add and enable a public domain
 
-Coturn will not start relaying until you attach a public (clearnet) domain to it. Until you do, its **TURN Server** health check fails and asks you to add one; the per-address reachability checks below only appear once a domain exists.
+Coturn will not start relaying until you attach a public (clearnet) domain to it. Until you do, its **TURN Server** health check fails and asks you to add one; the per-address checks below only appear once a domain exists.
 
 1. Make sure you have added a clearnet domain to your StartOS server (**System → Domains**).
 2. Open Coturn's **Interfaces** tab.
@@ -28,7 +28,7 @@ Coturn will not start relaying until you attach a public (clearnet) domain to it
 
 Coturn needs all three of those addresses enabled. If any is off, that part of Coturn stops working, and its matching health check — **TURN/STUN**, **TURN/STUN (TLS)**, or **Relay Ports** — fails, naming the exact address to switch on.
 
-StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain and the relay address are enabled, Coturn's health checks turn green.
+StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain and the relay address are enabled, Coturn's health checks turn green. Green means StartOS has published and forwarded these addresses, not that traffic reaches this server: if the ports are already taken on your gateway — for example, by another server on the same StartTunnel — the checks stay green while calls fail.
 
 ### 2. Open the required ports on your router
 

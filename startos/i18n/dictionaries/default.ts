@@ -9,11 +9,11 @@ const dict = {
   'The TURN server is not ready': 3,
   'Add a public domain to either the TURN/STUN or Relay Ports interface.': 4,
   'TURN/STUN': 5,
-  'Plain TURN/STUN is publicly reachable.': 6,
+  'Plain TURN/STUN is published on a public address.': 6,
   'Enable ${address} on the TURN/STUN interface.': 7,
   'TURN/STUN (TLS)': 8,
-  'TURN over TLS is publicly reachable.': 9,
-  'The relay port range is publicly reachable.': 10,
+  'TURN over TLS is published on a public address.': 9,
+  'The relay port range is published on a public address.': 10,
   'Enable the public IPv4 address on the Relay Ports interface.': 11,
 
   // interfaces.ts — descriptions ('TURN/STUN' and 'Relay Ports' names above)
@@ -28,7 +28,7 @@ const dict = {
   'Relay Ports (Password)': 17,
   'UDP port range for media relayed by the password endpoint': 18,
   'TURN Server (Password)': 19,
-  'The password endpoint is publicly reachable.': 20,
+  'The password endpoint is published on a public address.': 20,
   'Enable ${address} on the TURN/STUN (Password) interface.': 21,
   'Enable the public IPv4 address on the Relay Ports (Password) interface.': 22,
 
