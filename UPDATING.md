@@ -16,6 +16,4 @@ This package wraps the upstream [coturn/coturn](https://github.com/coturn/coturn
 
 ## Applying the bump
 
-1. Bump `dockerTag` in `startos/manifest/index.ts` to `coturn/coturn:<new version>`.
-2. Bump `version` in `startos/versions/current.ts` to `<new version>:0` (reset the StartOS revision to `0` on an upstream bump) and update `releaseNotes`.
-3. Build (`make`) and confirm the image pulls and the package packs.
+Bump `dockerTag` in `startos/manifest/index.ts` to `coturn/coturn:<new version>`.
