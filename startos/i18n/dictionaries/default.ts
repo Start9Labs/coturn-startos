@@ -69,6 +69,11 @@ const dict = {
   'Shared Secret Rotated': 53,
   'The new secret is below. Restart every service on this server that uses Coturn, and enter it in every service on another server.': 54,
   'Apps set up with the username and password stop relaying until you turn Password Access back on. The password is kept.': 55,
+
+  // main.ts — the gateway-consistency check
+  'Outbound Gateway': 56,
+  "Relayed traffic leaves through the gateway Coturn's addresses are published on.": 57,
+  "Relayed traffic leaves from a different address than clients are given. Send Coturn's outbound traffic through the gateway its addresses are published on.": 58,
 } as const
 
 /**

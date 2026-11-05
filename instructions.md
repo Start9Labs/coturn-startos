@@ -30,6 +30,8 @@ Coturn needs all three of those addresses enabled. If any is off, that part of C
 
 StartOS terminates TLS for the `turns:` endpoint at the edge using that domain's certificate. Once the domain and the relay address are enabled, Coturn's health checks turn green. Green means StartOS has published and forwarded these addresses, not that traffic reaches this server: if the ports are already taken on your gateway — for example, by another server on the same StartTunnel — the checks stay green while calls fail.
 
+If you publish Coturn through a StartTunnel to keep your home IP private, send Coturn's outbound traffic through that tunnel too. The media it relays leaves through its outbound gateway, so otherwise the people on a relayed call see your home IP rather than the address they were given — and the **Outbound Gateway** health check fails until the two match. If you use the tunnel for another reason, such as ports your router can't forward, the same mismatch still breaks relayed calls, so match them either way.
+
 ### 2. Open the required ports on your router
 
 Coturn needs the following ports forwarded from your router/ISP to your StartOS server so that remote peers can reach it:

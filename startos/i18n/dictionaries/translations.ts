@@ -58,6 +58,9 @@ export default {
     53: 'Secreto compartido rotado',
     54: 'El nuevo secreto está abajo. Reinicia todos los servicios de este servidor que usen Coturn e introdúcelo en todos los servicios de otros servidores.',
     55: 'Las aplicaciones configuradas con el usuario y la contraseña dejarán de retransmitir hasta que vuelvas a activar el acceso con contraseña. La contraseña se conserva.',
+    56: 'Puerta de enlace de salida',
+    57: 'El tráfico retransmitido sale por la puerta de enlace en la que están publicadas las direcciones de Coturn.',
+    58: 'El tráfico retransmitido sale desde una dirección distinta de la que reciben los clientes. Envía el tráfico de salida de Coturn por la puerta de enlace en la que están publicadas sus direcciones.',
   },
   de_DE: {
     0: 'Coturn wird gestartet!',
@@ -116,6 +119,9 @@ export default {
     53: 'Gemeinsames Geheimnis rotiert',
     54: 'Das neue Geheimnis steht unten. Starten Sie jeden Dienst auf diesem Server neu, der Coturn nutzt, und tragen Sie es in jeden Dienst auf einem anderen Server ein.',
     55: 'Anwendungen, die mit dem Benutzernamen und Passwort eingerichtet sind, leiten nicht mehr weiter, bis Sie den Passwortzugang wieder einschalten. Das Passwort bleibt erhalten.',
+    56: 'Ausgehendes Gateway',
+    57: 'Weitergeleiteter Datenverkehr verlässt den Server über das Gateway, auf dem die Adressen von Coturn veröffentlicht sind.',
+    58: 'Weitergeleiteter Datenverkehr verlässt den Server von einer anderen Adresse als der, die Clients erhalten. Leiten Sie den ausgehenden Datenverkehr von Coturn über das Gateway, auf dem seine Adressen veröffentlicht sind.',
   },
   pl_PL: {
     0: 'Uruchamianie Coturn!',
@@ -174,6 +180,9 @@ export default {
     53: 'Współdzielony sekret zmieniony',
     54: 'Nowy sekret jest poniżej. Uruchom ponownie każdą usługę na tym serwerze, która korzysta z Coturn, i wpisz go w każdej usłudze na innym serwerze.',
     55: 'Aplikacje skonfigurowane z nazwą użytkownika i hasłem przestaną przekazywać ruch, dopóki ponownie nie włączysz dostępu hasłem. Hasło zostaje zachowane.',
+    56: 'Brama wychodząca',
+    57: 'Przekazywany ruch wychodzi przez bramę, na której opublikowane są adresy Coturn.',
+    58: 'Przekazywany ruch wychodzi z innego adresu niż ten, który otrzymują klienci. Kieruj ruch wychodzący Coturn przez bramę, na której opublikowane są jego adresy.',
   },
   fr_FR: {
     0: 'Démarrage de Coturn !',
@@ -232,5 +241,8 @@ export default {
     53: 'Secret partagé renouvelé',
     54: 'Le nouveau secret est ci-dessous. Redémarrez chaque service de ce serveur qui utilise Coturn, et saisissez-le dans chaque service d’un autre serveur.',
     55: 'Les applications configurées avec l’identifiant et le mot de passe cessent de relayer jusqu’à ce que vous réactiviez l’accès par mot de passe. Le mot de passe est conservé.',
+    56: 'Passerelle sortante',
+    57: 'Le trafic relayé sort par la passerelle sur laquelle les adresses de Coturn sont publiées.',
+    58: 'Le trafic relayé sort depuis une adresse différente de celle donnée aux clients. Faites passer le trafic sortant de Coturn par la passerelle sur laquelle ses adresses sont publiées.',
   },
 } satisfies Record<string, LangDict>

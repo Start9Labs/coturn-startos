@@ -31,8 +31,6 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     addSsl: {
       preferredExternalPort: tlsPort,
       alpn: null,
-      addXForwardedHeaders: false,
-      auth: null,
     },
   })
   const turnReceipt = await turnOrigin.export([
@@ -81,8 +79,6 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     addSsl: {
       preferredExternalPort: staticTlsPort,
       alpn: null,
-      addXForwardedHeaders: false,
-      auth: null,
     },
   })
   const staticReceipt = await staticOrigin.export([

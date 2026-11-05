@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '4.18.0:4',
+  version: '4.18.0:5',
   releaseNotes: {
     en_US:
-      'Clarifies what the address health checks confirm: that an endpoint is published, not that traffic reaches it.',
+      'Adds an Outbound Gateway health check that fails when relayed traffic would leave from a different address than the one clients are given. Requires StartOS 0.4.1 or later.',
     es_ES:
-      'Aclara lo que confirman las comprobaciones de estado de las direcciones: que un punto de acceso está publicado, no que el tráfico llegue a él.',
+      'Añade una comprobación de estado Puerta de enlace de salida que falla cuando el tráfico retransmitido saldría desde una dirección distinta de la que reciben los clientes. Requiere StartOS 0.4.1 o posterior.',
     de_DE:
-      'Stellt klar, was die Adress-Integritätsprüfungen bestätigen: dass ein Endpunkt veröffentlicht ist, nicht dass Datenverkehr ihn erreicht.',
+      'Fügt eine Integritätsprüfung „Ausgehendes Gateway“ hinzu, die fehlschlägt, wenn weitergeleiteter Datenverkehr von einer anderen Adresse ausginge als der, die Clients erhalten. Erfordert StartOS 0.4.1 oder neuer.',
     pl_PL:
-      'Wyjaśnia, co potwierdzają kontrole stanu adresów: że punkt końcowy jest opublikowany, a nie że dociera do niego ruch.',
+      'Dodaje kontrolę stanu Brama wychodząca, która zgłasza błąd, gdy przekazywany ruch wychodziłby z innego adresu niż ten, który otrzymują klienci. Wymaga StartOS 0.4.1 lub nowszego.',
     fr_FR:
-      "Précise ce que confirment les vérifications d'état des adresses : qu'un point de terminaison est publié, et non que le trafic l'atteint.",
+      "Ajoute une vérification d'état Passerelle sortante, qui échoue lorsque le trafic relayé sortirait depuis une adresse différente de celle donnée aux clients. Nécessite StartOS 0.4.1 ou ultérieur.",
   },
   migrations: {
     up: async ({ effects }) => {},

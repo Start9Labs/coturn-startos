@@ -141,7 +141,7 @@ Install generates the shared secret and nothing else. No task is raised, and no 
 The service then starts in one of two states, and the difference is visible on the service page rather than buried:
 
 - **No public domain added yet.** Coturn cannot be configured without a realm, so the daemon starts idle and its single health check **fails** with instructions to add a public domain to one of the two interfaces. Nothing is broken; the server simply has nothing to serve.
-- **A domain is present.** The config is rendered, `turnserver` starts, and three further checks appear reporting whether each required address is actually enabled.
+- **A domain is present.** The config is rendered, `turnserver` starts, and four further checks appear: three reporting whether each required address is actually enabled, and one whether those addresses are published on Coturn's outbound gateway.
 
 Adding the domain is enough to move between them — the package notices and restarts itself. Note that the realm is taken from any public domain **added** to the interface, not only from an enabled one, so coturn comes up even when the domain has been added but not yet switched on for this interface; the per-address checks then name exactly what to enable.
 
@@ -186,7 +186,7 @@ None. This package raises no tasks, so the service is never held on a prompt and
 
 ## Health Checks
 
-One check always, and three more once a realm exists. All four are about exposure rather than process health, because a TURN server that is running but unpublished is useless in a way nothing else would report. They read what StartOS has published and forwarded, and send no traffic: a port the gateway forwards to another server, such as one already claimed on a shared StartTunnel, still shows green.
+One check always, and four more once a realm exists. All but the gateway check are about exposure rather than process health, because a TURN server that is running but unpublished is useless in a way nothing else would report. They read what StartOS has published and forwarded, and send no traffic: a port the gateway forwards to another server, such as one already claimed on a shared StartTunnel, still shows green.
 
 | Check                 | Displayed                | Reports                                                                           | Present                   |
 | --------------------- | ------------------------ | --------------------------------------------------------------------------------- | ------------------------- |
@@ -194,6 +194,7 @@ One check always, and three more once a realm exists. All four are about exposur
 | `turn-address`        | "TURN/STUN"              | Whether the plain `turn:` address is enabled                                      | once a realm exists       |
 | `turns-address`       | "TURN/STUN (TLS)"        | Whether the `turns:` address is enabled                                           | once a realm exists       |
 | `relay-ports`         | "Relay Ports"            | Whether the relay range is enabled and forwarded as a block                       | once a realm exists       |
+| `gateway-match`       | "Outbound Gateway"       | Whether every `external-ip` is published on Coturn's outbound gateway             | once a realm exists       |
 | `coturn-static`       | "TURN Server (Password)" | That the second listener's port is open                                           | while that listener is on |
 | `turn-static-address` | "TURN/STUN (Password)"   | Whether its address is enabled **and** its relay range forwarded                  | while that listener is on |
 
@@ -201,7 +202,9 @@ The second listener gets one exposure check rather than the first's pair, becaus
 
 **Each failing check names the exact address to enable**, rather than reporting a generic fault, and they poll every five seconds while failing instead of the usual thirty — so enabling an address turns the check green promptly.
 
-**A failure here does not mean the daemon is unhealthy.** Three of the four report configuration that the operator has not finished, and the fourth reports the same thing when no domain exists at all. Enabling and disabling an address updates these checks without restarting `turnserver`; only a change to the realm or the public IPs does that, since only those change the generated config.
+**`gateway-match` reads the `external-ip=` lines back from the rendered configs** (both, while the second listener is on) and asks StartOS which gateway publishes each one. Coturn's relayed traffic is traffic it starts itself, so it leaves through the outbound gateway, not the one a client reached it on: published on a StartTunnel while outbound stays on the home router, the peer sees the home IP instead of the advertised one. The check fails if any advertised address is published on another gateway, or on none. A pass means one gateway in both directions, not that the source address matches — a gateway with several public addresses can still pick another. It is a warning; it stops nothing.
+
+**A failure here does not mean the daemon is unhealthy.** The address checks report configuration that the operator has not finished, the gateway check a StartOS setting, and `coturn` reports the same thing when no domain exists at all. Enabling and disabling an address updates these checks without restarting `turnserver`; only a change to the realm or the public IPs does that, since only those change the generated config.
 
 ## Backups and Restore
 
@@ -264,6 +267,7 @@ health_checks:
   - turn-address # displayed "TURN/STUN"; only once a realm exists
   - turns-address # displayed "TURN/STUN (TLS)"; only once a realm exists
   - relay-ports # displayed "Relay Ports"; only once a realm exists
+  - gateway-match # displayed "Outbound Gateway"; only once a realm exists
   - coturn-static # only while the second listener is on
   - turn-static-address # only while the second listener is on
 ```
