@@ -287,6 +287,47 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
         requires: [],
       })
+      .addHealthCheck('gateway-match', {
+        ready: {
+          display: i18n('Outbound Gateway'),
+          trigger: reachabilityTrigger,
+          fn: async () => {
+            const confs = await Promise.all([
+              turnserverConf.read().once(),
+              staticAccount ? staticTurnserverConf.read().once() : null,
+            ])
+            const ips = [
+              ...new Set(
+                confs.flatMap((c) =>
+                  [...(c ?? '').matchAll(/^external-ip=([^/\s]+)/gm)].map(
+                    (m) => m[1],
+                  ),
+                ),
+              ),
+            ]
+            if (!ips.length) return { result: 'disabled' as const }
+            const { outbound, addresses } = await sdk.host.getAddressGateways(
+              effects,
+              turnHostId,
+              ips,
+            )
+            return addresses.every((a) => a.gateway === outbound)
+              ? {
+                  result: 'success' as const,
+                  message: i18n(
+                    "Relayed traffic leaves through the gateway Coturn's addresses are published on.",
+                  ),
+                }
+              : {
+                  result: 'failure' as const,
+                  message: i18n(
+                    "Relayed traffic leaves from a different address than clients are given. Send Coturn's outbound traffic through the gateway its addresses are published on.",
+                  ),
+                }
+          },
+        },
+        requires: ['coturn'],
+      })
       // Second turnserver process, present only while the username-and-password
       // listener is switched on. Its own config, database, pidfile and relay
       // block; it shares the container and so must not share any of those.
