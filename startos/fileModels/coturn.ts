@@ -9,19 +9,13 @@ export const turnserverConf = FileHelper.string({
   subpath: './turnserver.conf',
 })
 
-// The shared TURN REST-API secret, kept in its own `shared/` subdirectory so a
-// dependent (e.g. Jitsi) can mount only that subpath read-only — never the
-// volume root, which also holds turnserver.conf (the secret in plaintext) and
-// the coturn database.
+// The shared TURN REST-API secret; dependents mount the `public` volume read-only to read it.
 export const turnSecret = FileHelper.string({
-  base: sdk.volumes.main,
-  subpath: './shared/turn-secret',
+  base: sdk.volumes.public,
+  subpath: './turn-secret',
 })
 
-// Whether the second, username-and-password listener runs, and the account it
-// serves. Deliberately NOT under `shared/`: that subdirectory exists so a
-// dependent service can mount the REST secret and nothing else, and no
-// dependent consumes this credential — it is copied into a client by hand.
+// Whether the second, username-and-password listener runs, and the account it serves.
 export const staticAuth = FileHelper.json(
   { base: sdk.volumes.main, subpath: './static-auth.json' },
   z.looseObject({

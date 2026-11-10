@@ -51,19 +51,20 @@ A `chown` oneshot runs as root before the daemons to hand the data directory to 
 | `coturn`        | always                           | The REST-API shared-secret endpoint             |
 | `coturn-static` | only while Password Access is on | The fixed-credential endpoint, on its own ports |
 
-**They are two processes because coturn's authentication mode is per-process.** `use-auth-secret` overrides username/password authentication, and coturn raises a configuration alert if both are set — so one turnserver cannot serve both schemes, however many listeners it binds. Each has its own config, database, pidfile and relay range; they share only the subcontainer and the volume.
+**They are two processes because coturn's authentication mode is per-process.** `use-auth-secret` overrides username/password authentication, and coturn raises a configuration alert if both are set — so one turnserver cannot serve both schemes, however many listeners it binds. Each has its own config, database, pidfile and relay range; they share only the subcontainer and the `main` volume.
 
 ## Volume and Data Layout
 
-One volume, and the layout inside it is load-bearing.
+Two volumes.
 
-| Volume | Mount Point       | Purpose                                                                  |
-| ------ | ----------------- | ------------------------------------------------------------------------ |
-| `main` | `/var/lib/coturn` | Both configs and databases, `static-auth.json`, and `shared/turn-secret` |
+| Volume   | Mount Point       | Purpose                                            |
+| -------- | ----------------- | -------------------------------------------------- |
+| `main`   | `/var/lib/coturn` | Both configs and databases, and `static-auth.json` |
+| `public` | not mounted       | `turn-secret`, for dependents to mount read-only   |
 
-**The shared secret lives in its own `shared/` subdirectory deliberately.** A dependent service — Jitsi, for instance — needs the TURN REST-API secret and nothing else, and a subdirectory is the unit a dependency mount can be scoped to. Mounting the volume root instead would also hand over `turnserver.conf`, which contains the same secret in plaintext, and the coturn database.
+**The shared secret is the only file on `public`.** A dependent service — Jitsi, for instance — needs the TURN REST-API secret and nothing else, so it mounts `public` read-only. `main` stays private: it holds `turnserver.conf`, which contains the same secret in plaintext, and the coturn database.
 
-**Nothing else belongs in `shared/`.** The second listener's credential lives at the volume root in `static-auth.json`, not there: no dependent consumes it — it is copied into a client by hand — so putting it beside the REST secret would only widen what a dependency mount exposes.
+**Nothing else belongs on `public`.** The second listener's credential lives on `main` in `static-auth.json`: no dependent consumes it — it is copied into a client by hand — so putting it beside the REST secret would only widen what a dependency mount exposes.
 
 ## File Models
 
@@ -73,7 +74,7 @@ Four models. Three are plain strings and none of them is meant to be edited; the
 | ------------------------ | ------ | ------------------------- | --------------------------------------- |
 | `turnserver.conf`        | text   | Yes — `FileHelper.string` | `main`, on every start                  |
 | `turnserver-static.conf` | text   | Yes — `FileHelper.string` | `main`, while the second listener is on |
-| `shared/turn-secret`     | text   | Yes — `FileHelper.string` | Init when missing; Rotate Shared Secret |
+| `turn-secret` (`public`) | text   | Yes — `FileHelper.string` | Init when missing; Rotate Shared Secret |
 | `static-auth.json`       | JSON   | Yes — `FileHelper.json`   | The Password Access action              |
 
 **`turnserver.conf` is generated in full, not merged.** Every start renders the whole file from four inputs — the realm, the public IPv4 addresses, the container's own address, and the secret — and overwrites what was there. A hand edit does not survive a restart, and there is no configuration action: everything upstream would let you tune is fixed by this package.
@@ -95,7 +96,7 @@ The denied-peer list is the security-relevant one: anyone holding valid ephemera
 
 **The allowed entry keeps that list from blocking the server from itself.** When two clients on this server relay to each other, each names the other's relay candidate as its peer, and coturn maps that public address back to its own container address before checking it against the denied ranges — which include the container network. Allowing that one host restores relay-to-relay while the LAN and the other containers stay denied. IPv4 only: coturn refuses unique-local IPv6 peers ahead of the allowed list, so relay-to-relay over IPv6 on one server does not work.
 
-**`shared/turn-secret`** is generated once, and only when absent. Seeding on absence rather than only at install means a lost secret is regenerated rather than leaving the service permanently unable to authenticate anyone; on a restore the secret arrives from the backup and is left alone. Otherwise it changes only when **Rotate Shared Secret** replaces it.
+**`turn-secret`** is generated once, and only when absent. Seeding on absence rather than only at install means a lost secret is regenerated rather than leaving the service permanently unable to authenticate anyone; on a restore the secret arrives from the backup and is left alone. Otherwise it changes only when **Rotate Shared Secret** replaces it.
 
 **`turnserver-static.conf`** is generated the same way and from the same realm, public IPs and container address — it carries the same allowed and denied peer lists, for the same reasons — differing only in what it authenticates against and where it listens:
 
@@ -155,11 +156,11 @@ Five, in two groups. Nothing about either listener is configured by action — i
 
 Displays the shared secret with the endpoint's `turn:` and `turns:` URIs. The addresses are absent until a public domain is enabled on **TURN/STUN**; the secret is still shown, with a note saying so.
 
-**It exists for consumers on other servers.** A dependent on this server mounts `shared/` and reads the secret itself; a dependency mount cannot cross servers, so for a service on another server — another StartOS server's Nextcloud, or a Jitsi or Synapse run elsewhere — this is the only way to obtain it.
+**It exists for consumers on other servers.** A dependent on this server mounts `public` and reads the secret itself; a dependency mount cannot cross servers, so for a service on another server — another StartOS server's Nextcloud, or a Jitsi or Synapse run elsewhere — this is the only way to obtain it.
 
 ### Rotate Shared Secret
 
-Writes a new secret and shows it. `main` reads `shared/turn-secret` with `.const()`, so the write alone regenerates both configs and restarts turnserver — which drops every call being relayed at the time. The warning says so.
+Writes a new secret and shows it. `main` reads `turn-secret` with `.const()`, so the write alone regenerates both configs and restarts turnserver — which drops every call being relayed at the time. The warning says so.
 
 **Dependents are not notified, and nothing here can notify them.** A dependent on this server reads the secret off the mounted volume when it starts, so it keeps presenting the old one until it is restarted; a service on another server keeps it until the new one is entered. The warning and the result both tell the operator to do each.
 
@@ -208,7 +209,7 @@ The second listener gets one exposure check rather than the first's pair, becaus
 
 ## Backups and Restore
 
-The `main` volume is copied wholesale — `sdk.Backups.ofVolumes('main')`. No dump step and nothing excluded.
+Both volumes are copied wholesale — `sdk.Backups.ofVolumes('main', 'public')`. No dump step and nothing excluded.
 
 - **Included:** the shared secret, both generated configs, both databases, and `static-auth.json` — so the second listener comes back on if it was on, with the same username and password.
 - **Restore:** the secret comes back, so dependent services keep working without re-pairing, and hand-configured clients keep working without being re-entered. Both configs are regenerated from the restored server's own addresses on the first start, so a restore onto a server with a different domain adopts the new one rather than carrying the old.
@@ -243,10 +244,11 @@ subcontainers:
   - coturn-sub
 volumes:
   main: /var/lib/coturn
+  public: null # not mounted; holds turn-secret for dependents
 file_models:
   - turnserver.conf # generated in full on every start
   - turnserver-static.conf # ditto, while the second listener is on
-  - shared/turn-secret # scoped subdirectory a dependent can mount read-only
+  - turn-secret # on the public volume, which dependents mount read-only
   - static-auth.json # second listener's on/off state and its one account
 startos_managed_env_vars: []
 dependencies: []

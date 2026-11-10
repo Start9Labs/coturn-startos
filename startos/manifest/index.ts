@@ -10,7 +10,7 @@ export const manifest = setupManifest({
   marketingUrl: 'https://github.com/coturn/coturn',
   donationUrl: null,
   description: { short, long },
-  volumes: ['main'],
+  volumes: ['main', 'public'],
   images: {
     coturn: {
       source: { dockerTag: 'coturn/coturn:4.18.0' },
