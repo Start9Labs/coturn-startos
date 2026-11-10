@@ -1,21 +1,31 @@
-import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
+import { FileHelper, IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
+import { rm } from 'node:fs/promises'
+import { turnSecret } from '../fileModels/coturn'
+import { sdk } from '../sdk'
 
 export const current = VersionInfo.of({
-  version: '4.18.0:5',
+  version: '4.18.0:6',
   releaseNotes: {
-    en_US:
-      'Adds an Outbound Gateway health check that fails when relayed traffic would leave from a different address than the one clients are given. Requires StartOS 0.4.1 or later.',
-    es_ES:
-      'Añade una comprobación de estado Puerta de enlace de salida que falla cuando el tráfico retransmitido saldría desde una dirección distinta de la que reciben los clientes. Requiere StartOS 0.4.1 o posterior.',
-    de_DE:
-      'Fügt eine Integritätsprüfung „Ausgehendes Gateway“ hinzu, die fehlschlägt, wenn weitergeleiteter Datenverkehr von einer anderen Adresse ausginge als der, die Clients erhalten. Erfordert StartOS 0.4.1 oder neuer.',
-    pl_PL:
-      'Dodaje kontrolę stanu Brama wychodząca, która zgłasza błąd, gdy przekazywany ruch wychodziłby z innego adresu niż ten, który otrzymują klienci. Wymaga StartOS 0.4.1 lub nowszego.',
-    fr_FR:
-      "Ajoute une vérification d'état Passerelle sortante, qui échoue lorsque le trafic relayé sortirait depuis une adresse différente de celle donnée aux clients. Nécessite StartOS 0.4.1 ou ultérieur.",
+    en_US: 'StartOS package improvements; no change to Coturn.',
+    es_ES: 'Mejoras del paquete de StartOS; sin cambios en Coturn.',
+    de_DE: 'Verbesserungen am StartOS-Paket; keine Änderung an Coturn.',
+    pl_PL: 'Ulepszenia pakietu StartOS; bez zmian w Coturn.',
+    fr_FR: 'Améliorations du paquet StartOS ; aucun changement pour Coturn.',
   },
   migrations: {
-    up: async ({ effects }) => {},
+    up: async ({ effects }) => {
+      const secret = await FileHelper.string({
+        base: sdk.volumes.main,
+        subpath: './shared/turn-secret',
+      })
+        .read()
+        .once()
+      if (secret != null) await turnSecret.write(effects, secret)
+      await rm(sdk.volumes.main.subpath('shared'), {
+        recursive: true,
+        force: true,
+      })
+    },
     down: IMPOSSIBLE,
   },
 })
